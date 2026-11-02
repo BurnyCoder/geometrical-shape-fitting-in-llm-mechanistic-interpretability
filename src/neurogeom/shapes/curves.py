@@ -202,8 +202,10 @@ class Helix(ShapeFamily):
 
 class Ringing(ShapeFamily):
     """PCA 'ringing' / horseshoe curve c + sum_k a_k cos(k pi s) e_k, s in [0, 1], k = 1..3.
-    This is what PCA of any smooth ordinal 1D variable produces (Novembre & Stephens 2008; Diaconis
-    et al. 2008; Antognini & Sohl-Dickstein 2018), so it is the key confounder for helix/arc claims.
+    This is what PCA produces when the similarity between points decays smoothly with an ordinal 1D
+    variable: distance-decaying covariance (Novembre & Stephens 2008), only local distances known
+    (Diaconis et al. 2008), random walks (Antognini & Sohl-Dickstein 2018), autocorrelated signals
+    (Shinn 2023). It is therefore the key confounder for helix/arc claims.
     Points are naturally uniform in s (dense near the ends), which is part of its signature."""
 
     name, coarse, manifold_dim = "ringing", "1d", 1

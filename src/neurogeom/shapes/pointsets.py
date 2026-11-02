@@ -1,12 +1,13 @@
 """0D shape families: clusters (k = 2..6 centroids) and polytopes (vertex sets of six templates).
 
 Global context: discrete geometries - two clusters for true vs false statements (Marks & Tegmark
-2024), the uniform polytopes formed by features in superposition (Elhage et al. 2022: digons, triangles,
-tetrahedra, pentagons, square antiprisms). Templates: the regular triangle, square, pentagon, tetrahedron and
-octahedron, plus the square antiprism, which is uniform (all edges equal) but not regular. The "dense samples" of a point-set shape are its centroids
-or vertices (padded to a fixed maximum with weight 0), so Chamfer between centroid sets is
-permutation-invariant and needs no Hungarian matching. The unique output is the vertex/centroid list
-sorted lexicographically (by PC1, then PC2, PC3), which removes permutation and symmetry-group
+2024), the uniform polytopes formed by features in superposition (Elhage et al. 2022: digons,
+triangles, tetrahedra, pentagons, square antiprisms). Templates: the regular triangle, square,
+pentagon, tetrahedron and octahedron, plus the square antiprism, which is uniform (all edges equal)
+but not regular. The "dense samples" of a point-set shape are its centroids or vertices (padded to a
+fixed maximum with weight 0), so Chamfer between centroid sets is permutation-invariant and needs no
+Hungarian matching. The unique output is the vertex/centroid list sorted by PC1 with approximate
+PC2/PC3 tie-breaks (sort key x*1e6 + y*1e3 + z), which removes permutation and symmetry-group
 ambiguity in one step.
 """
 
@@ -25,7 +26,9 @@ K_MAX = max(K_VALUES)
 
 
 def _sort_points(pts: torch.Tensor, valid: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-    """Sort each sample's valid points lexicographically by (x, y, z); padding goes last."""
+    """Sort each sample's valid points by x, breaking near-ties by y then z through one scalar key
+    (approximately lexicographic: the y and z terms only decide when x values nearly coincide, and
+    float32 rounding mostly drops the z term); padding goes last."""
     key = pts[..., 0] * 1e6 + pts[..., 1] * 1e3 + pts[..., 2]       # coordinates are O(1) after normalisation
     key = key.masked_fill(~valid, float("inf"))
     idx = key.argsort(-1)
