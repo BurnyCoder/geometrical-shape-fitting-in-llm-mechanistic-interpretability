@@ -88,8 +88,9 @@ def generate_family(fam, b: int, n: int, cfg: dict, cfg_dense: dict, gen: torch.
     v = t["basis"]                                                              # (B, D, 3)
     m = v.transpose(-1, -2) @ e if embed_dim else v.transpose(-1, -2)           # (B, 3, 3), ~orthogonal
     q = nearest_orthogonal(m)        # may be improper after a D > 3 embedding; transform() handles mirrors
-    # The embedding and the PCA projection are isometries on the shape's subspace, so the scale is exactly
-    # 1/scale. (m can be rank-deficient when the shape is flat and the 3rd PC is a pure-noise direction;
+    # Without embedding the PCA projection is an isometry on the shape's subspace, so the scale is exactly
+    # 1/scale; after a D > 3 embedding with noise in every dimension the top-3 PCs only approximately span the
+    # embedded subspace, so V^T E is only ~orthogonal and the ground truth is an approximation (tests/test_model.py). (m can be rank-deficient when the shape is flat and the 3rd PC is a pure-noise direction;
     # the polar factor q then maps the unused local axis to an arbitrary orthogonal direction, which does
     # not move any point of the flat shape.)
     s = 1.0 / t["scale"]

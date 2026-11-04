@@ -24,7 +24,7 @@ synth:
 dense:
   curve: 256          # samples per 1D curve (line/arc/ellipse/helix/ringing)
   surface_side: 24    # surfaces use a side x side grid (576 samples)
-  blob: 256           # fixed quasi-random normal samples representing a Gaussian blob
+  blob: 256           # fixed pseudo-random normal samples representing a Gaussian blob
 
 # ---------------------------------------------------------------- model
 model:

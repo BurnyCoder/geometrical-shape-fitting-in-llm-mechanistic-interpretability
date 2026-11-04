@@ -111,7 +111,7 @@ entries:
     shape: generalized helix (line + circles with periods 2, 5, 10, 100)
     vocab_class: helix
     concept: integers 0-99 (helix fit); 0-360 only for the layer-0 Fourier analysis of GPT-J
-    models: GPT-J (main), Pythia-6.9B, Llama-3.1-8B (residual after layer 0)
+    models: "GPT-J (main; Fourier analysis of the residual after layer 0, helix fits at every layer); Pythia-6.9B and Llama-3.1-8B (appendix replication)"
     method: Fourier analysis + helix-basis regression on 100 PCs
     top3_pca: "partial (PC1 ~ linear; helix only in fitted subspace)"
     citation: "Kantamneni & Tegmark 2025, Language Models Use Trigonometry to Do Addition (ICLR 2025 workshops)"
@@ -124,17 +124,17 @@ entries:
     concept: years (prompt "The date is year")
     models: Llama-3.1-8B L19, last token
     method: listed in Table 1 (geometry column)
-    top3_pca: "unknown (not plotted as PCA; years appear only as tuning curves, Fig. 7)"
+    top3_pca: "unknown (the Fig. 2 caption lists age, temperature, day and color as its PCA examples; Fig. 7 shows years as SAE tuning curves)"
     citation: "Bhalla et al. 2026, Do Sparse Autoencoders Capture Concept Manifolds?"
     url: https://arxiv.org/abs/2604.28119
     bibkey: bhalla2026sae
     verified: fulltext
   - id: fourier_numbers
-    shape: periodic Fourier features (circles per digit/period)
+    shape: "Fourier features with periods 2, 2.5, 5 and 10 (a cos/sin pair implies a circle, but no circle is plotted)"
     vocab_class: arc
     concept: numbers in addition
     models: GPT-2-XL fine-tuned on addition (main); GPT-J and Phi-2 with few-shot prompts
-    method: Fourier analysis, probing
+    method: logit lens + discrete Fourier transform of logits and number embeddings; low/high-pass Fourier ablations
     top3_pca: "unknown"
     citation: "Zhou et al. 2024, Pre-trained Large Language Models Use Fourier Features to Compute Addition (NeurIPS 2024)"
     url: https://arxiv.org/abs/2406.03445
@@ -204,8 +204,8 @@ entries:
     vocab_class: torus
     concept: modular addition
     models: small MLPs (MLP-Add, MLP-Concat) and attention models trained from scratch
-    method: persistent homology (Ripser)
-    top3_pca: "n/a (topological analysis); a torus needs 4 dimensions to embed without self-intersection"
+    method: persistent homology (Ripser); PCA of the first-layer pre-activations of neurons grouped by frequency
+    top3_pca: "partial (disc in PCs 1-2 with >99% of the variance; the MLP-Concat torus is a flat torus spread over 4 PCs of about 25% each)"
     citation: "Moisescu-Pareja et al. 2025, On the geometry and topology of representations: the manifolds of modular addition (ICLR 2026)"
     url: https://arxiv.org/abs/2512.25060
     bibkey: moisescu2025modular
@@ -227,7 +227,7 @@ entries:
     concept: grid-cell modules (neuroscience analogue)
     models: rat medial entorhinal cortex
     method: persistent cohomology
-    top3_pca: "no (needs 4D)"
+    top3_pca: "no (shown after the top 6 PCs are reduced to 3D with nonlinear UMAP)"
     citation: "Gardner et al. 2022, Toroidal topology of population activity in grid cells, Nature"
     url: https://doi.org/10.1038/s41586-021-04268-7
     bibkey: gardner2022torus
@@ -238,7 +238,7 @@ entries:
     concept: all contextual embeddings
     models: GPT-2, BERT, ELMo
     method: cosine-similarity statistics
-    top3_pca: "partial (PC1 dominance)"
+    top3_pca: "no PCA view (the cone is inferred from the mean cosine similarity of random words)"
     citation: "Ethayarajh 2019, How Contextual are Contextualized Word Representations? Comparing the Geometry of BERT, ELMo, and GPT-2 Embeddings (EMNLP 2019)"
     url: https://arxiv.org/abs/1909.00512
     bibkey: ethayarajh2019contextual
@@ -261,8 +261,8 @@ entries:
     vocab_class: polytope
     concept: features in superposition
     models: toy ReLU autoencoders
-    method: direct inspection of weight columns
-    top3_pca: "n/a (weights are already low-dimensional)"
+    method: direct plots of the weight columns for 2-3 hidden dimensions; per-feature dimensionality metric for larger hidden sizes
+    top3_pca: "partial (direct only for 2-3 hidden dimensions; in larger models the polytopes sit in orthogonal subspaces)"
     citation: "Elhage et al. 2022, Toy Models of Superposition"
     url: https://transformer-circuits.pub/2022/toy_model/index.html
     code: https://github.com/anthropics/toy-models-of-superposition
@@ -273,7 +273,7 @@ entries:
     vocab_class: polytope
     concept: WordNet categories
     models: Gemma-2B (main), LLaMA-3-8B (appendix)
-    method: estimated concept vectors
+    method: LDA-like estimator of concept vectors in the (whitened) unembedding space of WordNet words
     top3_pca: "no"
     citation: "K. Park, Choe, Jiang, Veitch 2024, The Geometry of Categorical and Hierarchical Concepts in Large Language Models (ICLR 2025)"
     url: https://arxiv.org/abs/2406.01506
@@ -282,14 +282,14 @@ entries:
   - id: sae_crystals
     shape: parallelogram/trapezoid "crystals", lobes
     vocab_class: polytope
-    concept: SAE decoder directions
-    models: (SAE features of LLMs)
-    method: SAE + LDA
-    top3_pca: "no"
+    concept: word-pair function-vector differences (crystals; the search among SAE features "found mostly noise"); SAE feature co-occurrence (lobes)
+    models: Gemma-2-2b (layer-0 residual activations for crystals; layer-12 residual SAE for lobes)
+    method: clustering of pairwise difference vectors + LDA to project out distractor directions (crystals); spectral clustering of SAE co-occurrence (lobes)
+    top3_pca: "no (PC1 of the layer-0 differences mainly encodes word length; crystals appear only after LDA)"
     citation: "Li, Michaud, Baek, Engels, Sun, Tegmark 2024 (Entropy 2025), The Geometry of Concepts: Sparse Autoencoder Feature Structure"
     url: https://arxiv.org/abs/2410.19750
     bibkey: li2024crystals
-    verified: abstract
+    verified: fulltext
   # ---------------------------------------------------------------- out of vocabulary (not 3D-PCA friendly)
   - id: bhalla_geography_tree
     shape: hierarchical tree
@@ -308,7 +308,7 @@ entries:
     concept: belief states of a hidden Markov process (Mess3)
     models: 4-layer transformer, d_model=64
     method: linear regression probe (not PCA)
-    top3_pca: "no"
+    top3_pca: "not reported (no PCA in the paper)"
     citation: "Shai et al. 2024, Transformers represent belief state geometry in their residual stream (NeurIPS 2024)"
     url: https://arxiv.org/abs/2405.15943
     bibkey: shai2024belief
@@ -316,8 +316,8 @@ entries:
   - id: klein_bottle_patches
     shape: Klein bottle
     vocab_class: out-of-vocab
-    concept: 3x3 high-contrast natural image patches (and reportedly first-layer CNN filters)
-    models: natural image statistics; CNNs (secondary claim)
+    concept: 3x3 high-contrast natural image patches
+    models: natural image patches (van Hateren database); not CNNs (for CNN filters see cnn_filter_circle)
     method: persistent homology
     top3_pca: "no (needs 4D)"
     citation: "Carlsson et al. 2008, On the Local Behavior of Spaces of Natural Images, IJCV"
@@ -327,9 +327,9 @@ entries:
   - id: cnn_filter_circle
     shape: circle of rotating edge filters
     vocab_class: arc
-    concept: first-layer convolution filters
+    concept: spatial convolution filters, recurring "among all networks, depths, and during training" (follow-up work finds the three-circle subset of the Klein bottle in first-layer CIFAR-10 filters)
     models: CNNs on MNIST, CIFAR-10, SVHN, ImageNet
-    method: topological data analysis
+    method: topological data analysis (Mapper, persistent homology)
     top3_pca: "n/a"
     citation: "Bruel Gabrielsson & Carlsson 2018, Exposition and Interpretation of the Topology of Neural Networks"
     url: https://arxiv.org/abs/1810.03234
@@ -338,10 +338,10 @@ entries:
   - id: gru_onion
     shape: nested "onion" shells (magnitude-coded position)
     vocab_class: out-of-vocab
-    concept: sequence position
-    models: gated RNNs (GRUs)
-    method: interventions
-    top3_pca: "no"
+    concept: token identity at each sequence position, with the position coded by magnitude (repeat task)
+    models: small GRUs (larger GRUs learn linear representations instead)
+    method: interchange interventions and probes
+    top3_pca: "not reported (no PCA in the paper)"
     citation: "Csordas et al. 2024, Recurrent Neural Networks Learn to Store and Generate Sequences using Non-Linear Representations (BlackboxNLP 2024)"
     url: https://arxiv.org/abs/2408.10920
     bibkey: csordas2024onion

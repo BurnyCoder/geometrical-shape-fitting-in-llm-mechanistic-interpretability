@@ -1,7 +1,7 @@
 """Baseline B3 (trivial) and random controls.
 
 Global context: floors that any useful fitter must beat.
-- B3a "null": always predict the blob family (the chance-level majority on a balanced test set) and
+- B3a "null": always predict the blob family (chance level, 1/13, on the balanced test set) and
   fit a Gaussian blob classically.
 - B3b "always-circle": always fit a full circle/arc (the most commonly reported neural shape).
 - B3c "random": a random family with random (unfitted) parameters at the cloud's scale.

@@ -108,7 +108,7 @@ def grokking(cfg: dict, p: int = 113, epochs: int = 25000, seed: int = 0) -> Non
 
 # ------------------------------------------------------------------ R3: toy models of superposition
 def tms(cfg: dict, n_features: int, sparsity: float, m: int = 3, steps: int = 10000, instances: int = 8, seed: int = 0) -> np.ndarray:
-    """Train `instances` ReLU-output toy models (Elhage et al. 2022, Sec. 2) and return the W (m x n) of
+    """Train `instances` ReLU-output toy models (Elhage et al. 2022, section "Demonstrating Superposition") and return the W (m x n) of
     the lowest-loss instance (instances escape bad local minima, as in the paper's notebook)."""
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     torch.manual_seed(seed)

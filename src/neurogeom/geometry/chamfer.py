@@ -7,7 +7,8 @@ pytorch3d's chamfer_distance is not practical to install on Windows with CUDA 13
 small torch.cdist-style implementation (pairwise distances are cheap at N <= 2048, M <= 1024).
 Distances are unsquared, sqrt(d^2 + eps), so the metric is in the same units as the coordinates
 (the RMS radius of the normalised cloud) and robust to a few far points (Fan et al. 2017 used squared
-Chamfer; we prefer the unsquared, metric version as in many shape-fitting evaluations).
+Chamfer; we prefer the unsquared version, in coordinate units, as in many shape-fitting evaluations; Chamfer
+distance is not a metric, since it violates the triangle inequality).
 """
 
 from __future__ import annotations

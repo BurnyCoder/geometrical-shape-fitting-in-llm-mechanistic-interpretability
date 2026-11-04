@@ -8,7 +8,7 @@ Lee et al., "Set Transformer", ICML 2019, arXiv:1810.00825) with two changes:
   1. a key-padding mask so batches can mix cloud sizes (padded points never receive attention);
   2. attention via torch.nn.functional.scaled_dot_product_attention with the standard per-head
      1/sqrt(d_head) scaling (Vaswani et al. 2017) instead of the original 1/sqrt(dim_V).
-ISAB attends N points to m inducing points and back, O(N m) instead of O(N^2) (Lee et al. Sec. 3.2).
+ISAB attends N points to m inducing points and back, O(N m) instead of O(N^2) (Lee et al. Sec. 3.1).
 The DeepSets encoder (Zaheer et al. 2017, arXiv:1703.06114) is ablation A4.
 """
 

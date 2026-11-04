@@ -114,7 +114,7 @@ The numbers behind these points are in the generated tables and figures above; n
 6. **The learned fitter beats the classical pipeline on every point-count bin (H1, H2 supported).**
    - On the same baseline-subset clouds, the method has higher macro-F1 and a lower median Chamfer distance to the ground-truth shape than B1, which fits every family and selects with geometric AIC. Both paired-bootstrap CIs exclude 0.
    - Against B1 the accuracy gap grows with N: it is smallest for the smallest clouds (5–12 points), where every system struggles. Against B2 the gap is largest for the smallest clouds. See the accuracy-by-N figure.
-   - The feature-based classifier B2 sits between the two.
+   - The feature-based classifier B2 sits between the two overall and for N ≥ 13; for 5–12 points it is below B1 (accuracy-by-N figure).
 7. **Most of the gap is model selection, not fitting.**
    - A5 keeps the network's refined candidates but picks among them by geometric AIC instead of the classifier, and accuracy drops close to B2's level.
    - A5 still chooses only among the classifier's top-3 candidates, so it is not a purely classical selector, and the remaining difference between A5 and B1 also contains fitting and candidate effects.

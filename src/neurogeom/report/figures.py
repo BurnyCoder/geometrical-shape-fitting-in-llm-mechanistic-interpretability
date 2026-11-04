@@ -176,10 +176,11 @@ def _scatter3d(ax, pts, labels, shape, title, cyclic: bool):
     except ValueError:
         u = list(dict.fromkeys(labels))
         c = np.array([u.index(l) for l in labels], dtype=float)
-    cmap = "twilight" if cyclic else "viridis"
-    ax.scatter(pts[:, 0], pts[:, 1], pts[:, 2], c=c, cmap=cmap, s=8, depthshade=False, alpha=0.9)
-    if len(shape) <= 12:
-        ax.scatter(shape[:, 0], shape[:, 1], shape[:, 2], c=INK, s=40, marker="x")
+    # cyclic concepts: vmax = max + 1 closes the cycle, so the last value is not drawn in the first value's colour
+    cmap, vmax = ("twilight", c.max() + 1) if cyclic else ("viridis", c.max())
+    ax.scatter(pts[:, 0], pts[:, 1], pts[:, 2], c=c, cmap=cmap, vmin=c.min(), vmax=vmax, s=8, depthshade=False, alpha=0.9)
+    if len(shape) <= 12:   # point-set vertices: red crosses, the same red as curves/surfaces and as in the explorer
+        ax.scatter(shape[:, 0], shape[:, 1], shape[:, 2], c=PALETTE[7], s=40, marker="x")
     else:
         ax.scatter(shape[:, 0], shape[:, 1], shape[:, 2], c=PALETTE[7], s=1.2, alpha=0.35)
     ax.set_title(title, fontsize=8)

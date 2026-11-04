@@ -3,7 +3,7 @@
 This document records each design decision and the reason for it. Results are in [../reports/summary.md](../reports/summary.md). The preregistered plan is in [../reports/preregistration.md](../reports/preregistration.md).
 
 ## 1. Problem definition
-- **Input:** a 3D point cloud, given as the top-3 PCA coordinates of N activation vectors. N ranges from 5 to 1024.
+- **Input:** a 3D point cloud, given as the top-3 PCA coordinates of N activation vectors. Training clouds have N = 5 to 1024 points; real clouds have 5 to 1496 (the true/false statements, R9, exceed the training range).
 - **Output:**
   - one of 13 shape families;
   - a parameter vector that specifies the shape **uniquely**;
@@ -74,7 +74,7 @@ Some residual ambiguity remains. B1's per-family fits measure it: a test sample 
 
 | Nuisance | Range | Why |
 |---|---|---|
-| N | log-uniform 5–1024 | Real clouds range from 7 (weekday means) to 1023 (GPT-2 positions). |
+| N | log-uniform 5–1024 | Real clouds range from 5 and 6 (toy models of superposition) to 1496 (true/false statements, beyond the training range; the model's log N input then exceeds its training range). |
 | Noise σ | log-uniform 0.003–0.15 of the RMS radius; 10% noise-free | Real activations range from nearly clean (W_pos) to very noisy (prompt variation). |
 | Anisotropic noise | 30% of samples | Real noise is not isotropic. |
 | Density | uniform / Beta / clumped, for curves and surfaces (not for blob, clusters or polytope) | Real concept values are not spread uniformly along the manifold. |
@@ -111,11 +111,11 @@ Why the objective is two-sided: the one-sided points → shape distance alone is
 ## 8. Real-activation conventions
 - **"Layer L"** is Hugging Face `output_hidden_states[L]`, the residual stream after L blocks. Models are truncated to L+1 blocks, so index L is never the norm-applied final state.
 - **Precision and memory:** Llama-3.1-8B runs in bf16. Blocks that do not fit in 6.5 GiB of VRAM are offloaded to the CPU by accelerate. We do not quantize, because quantization could distort the geometry.
-- **Prompts and value ranges:** listed in `src/neurogeom/realdata/llm_sets.py` and [../reports/deviations.md](../reports/deviations.md). Every prompt is logged with a timestamp.
+- **Prompts and value ranges:** listed in `src/neurogeom/realdata/llm_sets.py` and [../reports/deviations.md](../reports/deviations.md). Every prompt is logged with a timestamp, except the counting corpus: for Llama only the first 200 characters of each document are logged, and the exploratory Pythia counting run logs no prompts.
 
 ## 9. Statistics
 - Percentile bootstrap CIs (2000 replicates for every CI, including macro-F1, since 2026-11-01; before that macro-F1 used 500 and the paired macro-F1 difference 1000, see [deviations](../reports/deviations.md)).
 - Paired bootstrap CIs for every comparison. p-values: H1 (macro-F1) from a normal approximation to the paired-bootstrap standard error; H2 and H5b from Wilcoxon signed-rank tests on per-cloud Chamfer distances. Holm correction across the preregistered comparisons that were run (H1, H2, H5b). Values below 10⁻¹⁶ are displayed as a floor.
 - Exact (Clopper–Pearson) binomial CIs and a one-sided label-permutation null (10,000 permutations) for agreement on real data, using the subsample-majority coarse label.
-- For real data, 200 subsamples of 80% each, without replacement (bootstrap with replacement would duplicate points in clouds as small as N = 7).
+- For real data, 200 subsamples of 80% each, without replacement (bootstrap with replacement would duplicate points in clouds as small as N = 5).
 - 5-fold held-out residuals.

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import re
+import textwrap
 from pathlib import Path
 
 from neurogeom.config import REPO_ROOT
@@ -118,7 +119,7 @@ def _helix_rule_ids(real: dict, accepted: bool) -> list[str]:
 
 
 def real_table(results: list[dict]) -> str:
-    rows = ["| Dataset | Model / layer | N x D | Top-3 var. | Expected (coarse / fine) | Fit (full cloud) | p | Subsample majority (freq.) | Held-out resid. method / B1 / helix / ringing | Matched-Gaussian -> blob | Flags |",
+    rows = ["| Dataset | Model / layer | N x D | Top-3 var. | Expected (coarse / fine) | Fit (full cloud) | p(fit) | Subsample majority (freq.) | Held-out resid. method / B1 / helix / ringing | Matched-Gaussian -> blob | Flags |",
             "|---|---|---|---|---|---|---|---|---|---|---|"]
     for r in results:
         if r["id"].startswith("C1_") and not r["id"].endswith("_0"):
@@ -132,7 +133,7 @@ def real_table(results: list[dict]) -> str:
         flags = ", ".join(f for f, on in (("gap<1.5", r["gap_flag"]), ("OOD", r["ood"])) if on) or "-"
         exp = f"{m.get('expected_coarse') or '-'} / {', '.join(m.get('expected_fine') or ['-'])}"
         c2 = r.get("C2_matched_gaussian", {}).get("blob")
-        rows.append(f"| `{r['id']}`{' (prereg)' if is_prereg(r) else ''} | {m.get('model', m.get('source', ''))[:40]} / {m.get('layer', '-')} | "
+        rows.append(f"| `{r['id']}`{' (prereg)' if is_prereg(r) else ''} | {textwrap.shorten(m.get('model', m.get('source', '')), 60, placeholder='...')} / {m.get('layer', '-')} | "
                     f"{r['N']} x {r['D']} | {100 * r['top3_explained']:.0f}% | {exp} | **{r['family']}** | {r['probs'][r['family']]:.2f} | "
                     f"{maj} ({100 * freq:.0f}%) | {hos} | {_pct(c2)} | {flags} |")
     return "\n".join(rows)
@@ -237,7 +238,7 @@ def select_cols(md: str, cols: list[str]) -> str:
 
 PAPER_COMPACT = {   # paper tables: the same generated tables, fewer columns so they stay legible
     "results_table": ["System", "n", "Fine accuracy [95% CI]", "Macro-F1 [95% CI]", "Coarse accuracy", "Median Chamfer to GT [95% CI]"],
-    "real_table": ["Dataset", "N x D", "Top-3 var.", "Expected (coarse / fine)", "Fit (full cloud)", "p", "Subsample majority (freq.)", "Flags"],
+    "real_table": ["Dataset", "N x D", "Top-3 var.", "Expected (coarse / fine)", "Fit (full cloud)", "p(fit)", "Subsample majority (freq.)", "Flags"],
 }
 
 

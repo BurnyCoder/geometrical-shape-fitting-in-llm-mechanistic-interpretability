@@ -35,7 +35,7 @@ This is a Set Transformer trained **only on synthetic shapes**. Its input is a 3
 
 - Code, preregistration and reports: {GITHUB}
 - Paper: `paper.pdf` in this repository
-- Run logs (training, evaluation, activation extraction with every LLM prompt): `logs/` in this repository
+- Run logs (training, evaluation, activation extraction with the LLM prompts; the counting corpus is logged as the first 200 characters per document, and the exploratory Pythia counting run logs none): `logs/` in this repository
 - Interactive explorer of real and synthetic fits: {PAGES}
 - License: MIT ({GITHUB}/blob/main/LICENSE)
 
