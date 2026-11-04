@@ -67,6 +67,9 @@ pre { white-space:pre-wrap; font-size:11px; background:var(--panel); padding:8px
 </main>
 <script>
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+// plotly.js has no named cyclic colorscale ("Twilight" exists only in plotly.py), so the colours of plotly.py's
+// Twilight are spelled out: https://github.com/plotly/plotly.py/blob/main/_plotly_utils/colors/cyclical.py
+const TWILIGHT = ['#e2d9e2','#9ebbc9','#6785be','#5e43a5','#421257','#471340','#8e2c50','#ba6657','#ceac94','#e2d9e2'].map((c, i, a) => [i / (a.length - 1), c]);
 async function load(id, btn) {
   document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
@@ -74,13 +77,14 @@ async function load(id, btn) {
   const pts = d.points, shp = d.shape;
   let col = d.labels.map(Number); if (col.some(isNaN)) { const u=[...new Set(d.labels)]; col = d.labels.map(l => u.indexOf(l)); }
   const traces = [{type:'scatter3d', mode:'markers', name:'activations', x:pts.map(p=>p[0]), y:pts.map(p=>p[1]), z:pts.map(p=>p[2]),
-      text:d.labels, hovertemplate:'%{text}<extra></extra>', marker:{size:3, color:col, colorscale: d.cyclic ? 'Twilight' : 'Viridis', opacity:.9}}];
+      text:d.labels, hovertemplate:'%{text}<extra></extra>', marker:{size:3, color:col, opacity:.9, ...(d.cyclic   // cmax = max + 1 closes the cycle: the last value sits one step before the first, not on it
+          ? {colorscale: TWILIGHT, cmin: Math.min(...col), cmax: Math.max(...col) + 1} : {colorscale: 'Viridis'})}}];
   traces.push({type:'scatter3d', mode:'markers', name:'fitted ' + d.family, x:shp.map(p=>p[0]), y:shp.map(p=>p[1]), z:shp.map(p=>p[2]),
       hoverinfo:'skip', marker:{size: shp.length <= 12 ? 7 : 1.5, color:'#e34948', opacity: shp.length <= 12 ? 1 : .45, symbol: shp.length <= 12 ? 'x' : 'circle'}});
   Plotly.react('plot', traces, {paper_bgcolor:css('--surface'), font:{color:css('--ink')}, margin:{l:0,r:0,t:10,b:0}, showlegend:true,
       legend:{x:0, y:1}, scene:{xaxis:{title:'PC1'}, yaxis:{title:'PC2'}, zaxis:{title:'PC3'}, aspectmode:'data'}}, {responsive:true});
   const probs = Object.entries(d.probs).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  const met = d.expected_fine ? (d.expected_fine.includes(d.majority || d.family) ? '<span class="ok">matches expectation</span>' : '<span class="no">differs from expectation</span>') : '';
+  const met = d.expected_fine ? (d.expected_fine.includes(d.majority || d.family) ? '<span class="ok">fine family matches expectation</span>' : '<span class="no">fine family differs from expectation</span>') : '';
   document.getElementById('info').innerHTML = `<h3>${d.id}</h3><div class="kv">
     <div>source</div><div>${d.source || ''}</div><div>N × D</div><div>${d.N} × ${d.D}</div>
     <div>top-3 variance</div><div>${(100*d.top3).toFixed(0)}%</div>
