@@ -33,20 +33,20 @@ We trained a small neural network to make that call automatically. Shown a 3D cl
 **For a layperson:**
 - On made-up test shapes, the network is right far more often than the careful classical method.
 - On real model activations, its rough shape class matches what researchers reported on a little over half of the datasets, which is not better than a shuffled-label baseline. Looking at the failures afterwards, it seems to fail when the real shape is not one of its 13 shapes, when the 3D picture is only a slice of something higher-dimensional, or when the cloud looks unlike its training shapes.
-- It also tends to see spirals in smooth random curves. The extra check we planned catches those, but it still accepts spirals for clouds that researchers describe as circles, so a "spiral" verdict needs more than that check.
+- It also tends to see spirals in smooth random curves. The extra check we planned rejected the one such curve it was run on (the others got only the quick full-cloud fit), but it still accepts spirals for clouds that researchers describe as circles, so a "spiral" verdict needs more than that check.
 
 ## Glossary
 - **Activation / residual stream:** the vector of numbers a model computes for a token at a given layer.
 - **PCA (principal component analysis):** rotates the data so that the first few axes ("top-3 PCs") capture the most variance. We look at the data in the top-3 PCs.
 - **Shape family:** a kind of shape (circle, helix, ...). **Parameters:** the numbers that pin down one particular shape of that kind (center, radius, axis, ...). **Canonical / unique parameters:** one agreed-upon way to write those numbers when several descriptions give the same shape.
-- **Chamfer distance:** a distance between two shapes. Each point of one shape is matched to its nearest point on the other, and the distances are averaged both ways. 0 means identical. Here it is measured in units of the cloud's RMS radius.
+- **Chamfer distance:** a distance between two shapes. Each point of one shape is matched to its nearest point on the other; the mean distance in each direction is computed, and the two means are added. 0 means identical. Here it is measured in units of the cloud's RMS radius.
 - **Residual:** the average distance from the observed points to the fitted shape.
 - **Refinement:** after the network guesses, a few hundred gradient steps adjust the shape to fit the points better.
 - **Set Transformer:** a neural network that reads an unordered set of points ([Lee et al. 2019](https://arxiv.org/abs/1810.00825)).
-- **Geometric AIC (G-AIC):** a classical rule for choosing between shape families. It trades off fit quality against the number of parameters ([Kanatani 2004](https://iim.cs.tut.ac.jp/member/kanatani/papers/pamodel2.pdf)).
+- **Geometric AIC (G-AIC):** a classical rule for choosing between shape families. It adds to the squared residual a penalty 2(dN + p)ε², where d is the shape's dimension, N the number of points, p the number of shape parameters and ε the noise level ([Kanatani 2004](https://iim.cs.tut.ac.jp/member/kanatani/papers/pamodel2.pdf)).
 - **Ringing / horseshoe artifact:** when the similarity between points decays smoothly along a sequence (for example a random walk, or data whose covariance decays with distance), PCA produces arch- or spiral-shaped curves, even when nothing interesting is going on ([Novembre & Stephens 2008](https://doi.org/10.1038/ng.139); [Antognini & Sohl-Dickstein 2018](https://arxiv.org/abs/1806.08805); [Shinn 2023](https://doi.org/10.1073/pnas.2311420120)). A true helix has to beat this explanation.
 - **Fine / coarse accuracy:** fine is the exact family. Coarse is only the dimension of the shape: point set (0D), curve (1D), surface (2D) or blob (3D).
-- **Subsample majority:** the label given most often when the fitter is re-run on 200 random 80% subsets of a real cloud. H3 uses its coarse class.
+- **Subsample majority:** the label given most often when the fitter is re-run on 200 random 80% subsets of a real cloud. H3 uses the most frequent coarse label (point set, curve, surface or blob) across those subsets.
 - **Bootstrap CI:** an error bar computed by resampling the test samples (2000 resamples).
 - **Preregistration:** writing down hypotheses and pass/fail criteria before seeing results.
 
@@ -90,22 +90,22 @@ We trained a small neural network to make that call automatically. Shown a 3D cl
 ## Real activations
 
 <!-- BEGIN:real_table -->
-| Dataset | Model / layer | N x D | Top-3 var. | Expected (coarse / fine) | Fit (full cloud) | p | Subsample majority (freq.) | Held-out resid. method / B1 / helix / ringing | Matched-Gaussian -> blob | Flags |
+| Dataset | Model / layer | N x D | Top-3 var. | Expected (coarse / fine) | Fit (full cloud) | p(fit) | Subsample majority (freq.) | Held-out resid. method / B1 / helix / ringing | Matched-Gaussian -> blob | Flags |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `C1_gp_0` (prereg) | RBF Gaussian process over an ordinal ind / - | 200 x 768 | 99% | 1d / ringing | **helix** | 0.72 | ringing (58%) | 0.075 / 0.025 / 0.075 / 0.025 | 100% | - |
+| `C1_gp_0` (prereg) | RBF Gaussian process over an ordinal index, length scale... / - | 200 x 768 | 99% | 1d / ringing | **helix** | 0.72 | ringing (58%) | 0.075 / 0.025 / 0.075 / 0.025 | 100% | - |
 | `C1_walk_0` (prereg) | Gaussian random walk, 200 steps in R^768 / - | 200 x 768 | 83% | 1d / ringing | **ringing** | 0.99 | ringing (100%) | 0.030 / 0.030 / 0.082 / 0.030 | 100% | - |
-| `C3_gpt2_wpos_init` (prereg) | GPT-2 initialisation N(0, 0.02^2) of W_p / - | 1023 x 768 | 1% | 3d / blob | **blob** | 0.93 | blob (100%) | 0.235 / 0.553 / 0.326 / 0.504 | 100% | gap<1.5 |
-| `C3_grokking_WE_init` (prereg) | 1-layer transformer trained on (a+b) mod / - | 113 x 128 | 9% | 3d / blob | **blob** | 0.95 | blob (100%) | 0.238 / 0.577 / 0.347 / 0.554 | 100% | gap<1.5 |
-| `C3_grokking_WE_memorised` | 1-layer transformer trained on (a+b) mod / - | 113 x 128 | 15% | - / - | **blob** | 0.97 | blob (100%) | 0.236 / 0.501 / 0.326 / 0.542 | 100% | gap<1.5 |
+| `C3_gpt2_wpos_init` (prereg) | GPT-2 initialisation N(0, 0.02^2) of W_pos / - | 1023 x 768 | 1% | 3d / blob | **blob** | 0.93 | blob (100%) | 0.235 / 0.553 / 0.326 / 0.504 | 100% | gap<1.5 |
+| `C3_grokking_WE_init` (prereg) | 1-layer transformer trained on (a+b) mod 113 (Nanda et... / - | 113 x 128 | 9% | 3d / blob | **blob** | 0.95 | blob (100%) | 0.238 / 0.577 / 0.347 / 0.554 | 100% | gap<1.5 |
+| `C3_grokking_WE_memorised` | 1-layer transformer trained on (a+b) mod 113 (Nanda et... / - | 113 x 128 | 15% | - / - | **blob** | 0.97 | blob (100%) | 0.236 / 0.501 / 0.326 / 0.542 | 100% | gap<1.5 |
 | `C3_llama_counting_init` (prereg) | meta-llama/Llama-3.1-8B (random init) / 5 | 150 x 4096 | 14% | 3d / blob | **clusters** | 0.96 | clusters (98%) | 0.426 / 0.356 / 0.213 / 0.260 | 100% | gap<1.5, OOD |
 | `C3_llama_months_init` (prereg) | meta-llama/Llama-3.1-8B (random init) / 5 | 144 x 4096 | 19% | 3d / blob | **clusters** | 0.93 | clusters (82%) | 0.395 / 0.224 / 0.228 / 0.393 | 100% | gap<1.5, OOD |
 | `C3_llama_weekdays_init` (prereg) | meta-llama/Llama-3.1-8B (random init) / 5 | 49 x 4096 | 34% | 3d / blob | **polytope** | 0.72 | clusters (70%) | 0.389 / 0.123 / 0.125 / 0.175 | 100% | gap<1.5, OOD |
-| `C3_tms_dense` | toy model, n=6, m=3, dense features (S=0 / - | 5 x 3 | 100% | - / - | **polytope** | 0.57 | polytope (100%) | 0.966 / 0.401 / 0.248 / 0.916 | 20% | - |
+| `C3_tms_dense` | toy model, n=6, m=3, dense features (S=0) / - | 5 x 3 | 100% | - / - | **polytope** | 0.57 | polytope (100%) | 0.966 / 0.401 / 0.248 / 0.916 | 20% | - |
 | `R1_gpt2_wpos` (prereg) | gpt2 / embedding | 1023 x 768 | 91% | 1d / helix | **sphere** | 0.65 | sphere (74%) | 0.069 / 0.068 / 0.130 / 0.383 | 100% | - |
-| `R2_grokking_WE` (prereg) | 1-layer transformer trained on (a+b) mod / - | 113 x 128 | 32% | 1d / arc, ellipse | **helix** | 0.51 | helix (43%) | 0.185 / 0.299 / 0.191 / 0.494 | 100% | gap<1.5 |
-| `R3_tms_n20` | toy model of superposition, n=20, m=3, s / - | 20 x 3 | 100% | 0d / polytope, clusters | **sphere** | 0.84 | sphere (78%) | 0.230 / 0.216 / 0.242 / 0.572 | 95% | - |
-| `R3_tms_n6` (prereg) | toy model of superposition, n=6, m=3, sp / - | 6 x 3 | 100% | 0d / polytope, clusters | **polytope** | 1.00 | polytope (100%) | 0.447 / 0.002 / 0.215 / 1.129 | 25% | - |
-| `R3_tms_n8` (prereg) | toy model of superposition, n=8, m=3, sp / - | 8 x 3 | 100% | 0d / polytope, clusters | **polytope** | 1.00 | sphere (56%) | 0.854 / 0.058 / 0.284 / 0.936 | 55% | - |
+| `R2_grokking_WE` (prereg) | 1-layer transformer trained on (a+b) mod 113 (Nanda et... / - | 113 x 128 | 32% | 1d / arc, ellipse | **helix** | 0.51 | helix (43%) | 0.185 / 0.299 / 0.191 / 0.494 | 100% | gap<1.5 |
+| `R3_tms_n20` | toy model of superposition, n=20, m=3, sparsity=0.99 / - | 20 x 3 | 100% | 0d / polytope, clusters | **sphere** | 0.84 | sphere (78%) | 0.230 / 0.216 / 0.242 / 0.572 | 95% | - |
+| `R3_tms_n6` (prereg) | toy model of superposition, n=6, m=3, sparsity=0.95 / - | 6 x 3 | 100% | 0d / polytope, clusters | **polytope** | 1.00 | polytope (100%) | 0.447 / 0.002 / 0.215 / 1.129 | 25% | - |
+| `R3_tms_n8` (prereg) | toy model of superposition, n=8, m=3, sparsity=0.97 / - | 8 x 3 | 100% | 0d / polytope, clusters | **polytope** | 1.00 | sphere (56%) | 0.854 / 0.058 / 0.284 / 0.936 | 55% | - |
 | `R4_llama_counting` (prereg) | meta-llama/Llama-3.1-8B / 5 | 150 x 4096 | 69% | 1d / helix | **ringing** | 0.74 | ringing (92%) | 0.094 / 0.257 / 0.133 / 0.094 | 100% | - |
 | `R4b_pythia_counting` | EleutherAI/pythia-410m / 6 | 150 x 1024 | 75% | 1d / helix | **ringing** | 0.86 | ringing (100%) | 0.080 / 0.219 / 0.138 / 0.079 | 100% | - |
 | `R5a_llama_weekdays` (prereg) | meta-llama/Llama-3.1-8B / 5 | 49 x 4096 | 66% | 1d / arc | **helix** | 0.83 | helix (58%) | 0.077 / 0.075 / 0.077 / 0.123 | 100% | gap<1.5 |

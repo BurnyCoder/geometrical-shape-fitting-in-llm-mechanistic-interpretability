@@ -33,22 +33,22 @@ Exploratory, not preregistered: R4b (Pythia-410m counting, layer 6), R5c ("It's 
 ## Results
 
 <!-- BEGIN:real_table -->
-| Dataset | Model / layer | N x D | Top-3 var. | Expected (coarse / fine) | Fit (full cloud) | p | Subsample majority (freq.) | Held-out resid. method / B1 / helix / ringing | Matched-Gaussian -> blob | Flags |
+| Dataset | Model / layer | N x D | Top-3 var. | Expected (coarse / fine) | Fit (full cloud) | p(fit) | Subsample majority (freq.) | Held-out resid. method / B1 / helix / ringing | Matched-Gaussian -> blob | Flags |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `C1_gp_0` (prereg) | RBF Gaussian process over an ordinal ind / - | 200 x 768 | 99% | 1d / ringing | **helix** | 0.72 | ringing (58%) | 0.075 / 0.025 / 0.075 / 0.025 | 100% | - |
+| `C1_gp_0` (prereg) | RBF Gaussian process over an ordinal index, length scale... / - | 200 x 768 | 99% | 1d / ringing | **helix** | 0.72 | ringing (58%) | 0.075 / 0.025 / 0.075 / 0.025 | 100% | - |
 | `C1_walk_0` (prereg) | Gaussian random walk, 200 steps in R^768 / - | 200 x 768 | 83% | 1d / ringing | **ringing** | 0.99 | ringing (100%) | 0.030 / 0.030 / 0.082 / 0.030 | 100% | - |
-| `C3_gpt2_wpos_init` (prereg) | GPT-2 initialisation N(0, 0.02^2) of W_p / - | 1023 x 768 | 1% | 3d / blob | **blob** | 0.93 | blob (100%) | 0.235 / 0.553 / 0.326 / 0.504 | 100% | gap<1.5 |
-| `C3_grokking_WE_init` (prereg) | 1-layer transformer trained on (a+b) mod / - | 113 x 128 | 9% | 3d / blob | **blob** | 0.95 | blob (100%) | 0.238 / 0.577 / 0.347 / 0.554 | 100% | gap<1.5 |
-| `C3_grokking_WE_memorised` | 1-layer transformer trained on (a+b) mod / - | 113 x 128 | 15% | - / - | **blob** | 0.97 | blob (100%) | 0.236 / 0.501 / 0.326 / 0.542 | 100% | gap<1.5 |
+| `C3_gpt2_wpos_init` (prereg) | GPT-2 initialisation N(0, 0.02^2) of W_pos / - | 1023 x 768 | 1% | 3d / blob | **blob** | 0.93 | blob (100%) | 0.235 / 0.553 / 0.326 / 0.504 | 100% | gap<1.5 |
+| `C3_grokking_WE_init` (prereg) | 1-layer transformer trained on (a+b) mod 113 (Nanda et... / - | 113 x 128 | 9% | 3d / blob | **blob** | 0.95 | blob (100%) | 0.238 / 0.577 / 0.347 / 0.554 | 100% | gap<1.5 |
+| `C3_grokking_WE_memorised` | 1-layer transformer trained on (a+b) mod 113 (Nanda et... / - | 113 x 128 | 15% | - / - | **blob** | 0.97 | blob (100%) | 0.236 / 0.501 / 0.326 / 0.542 | 100% | gap<1.5 |
 | `C3_llama_counting_init` (prereg) | meta-llama/Llama-3.1-8B (random init) / 5 | 150 x 4096 | 14% | 3d / blob | **clusters** | 0.96 | clusters (98%) | 0.426 / 0.356 / 0.213 / 0.260 | 100% | gap<1.5, OOD |
 | `C3_llama_months_init` (prereg) | meta-llama/Llama-3.1-8B (random init) / 5 | 144 x 4096 | 19% | 3d / blob | **clusters** | 0.93 | clusters (82%) | 0.395 / 0.224 / 0.228 / 0.393 | 100% | gap<1.5, OOD |
 | `C3_llama_weekdays_init` (prereg) | meta-llama/Llama-3.1-8B (random init) / 5 | 49 x 4096 | 34% | 3d / blob | **polytope** | 0.72 | clusters (70%) | 0.389 / 0.123 / 0.125 / 0.175 | 100% | gap<1.5, OOD |
-| `C3_tms_dense` | toy model, n=6, m=3, dense features (S=0 / - | 5 x 3 | 100% | - / - | **polytope** | 0.57 | polytope (100%) | 0.966 / 0.401 / 0.248 / 0.916 | 20% | - |
+| `C3_tms_dense` | toy model, n=6, m=3, dense features (S=0) / - | 5 x 3 | 100% | - / - | **polytope** | 0.57 | polytope (100%) | 0.966 / 0.401 / 0.248 / 0.916 | 20% | - |
 | `R1_gpt2_wpos` (prereg) | gpt2 / embedding | 1023 x 768 | 91% | 1d / helix | **sphere** | 0.65 | sphere (74%) | 0.069 / 0.068 / 0.130 / 0.383 | 100% | - |
-| `R2_grokking_WE` (prereg) | 1-layer transformer trained on (a+b) mod / - | 113 x 128 | 32% | 1d / arc, ellipse | **helix** | 0.51 | helix (43%) | 0.185 / 0.299 / 0.191 / 0.494 | 100% | gap<1.5 |
-| `R3_tms_n20` | toy model of superposition, n=20, m=3, s / - | 20 x 3 | 100% | 0d / polytope, clusters | **sphere** | 0.84 | sphere (78%) | 0.230 / 0.216 / 0.242 / 0.572 | 95% | - |
-| `R3_tms_n6` (prereg) | toy model of superposition, n=6, m=3, sp / - | 6 x 3 | 100% | 0d / polytope, clusters | **polytope** | 1.00 | polytope (100%) | 0.447 / 0.002 / 0.215 / 1.129 | 25% | - |
-| `R3_tms_n8` (prereg) | toy model of superposition, n=8, m=3, sp / - | 8 x 3 | 100% | 0d / polytope, clusters | **polytope** | 1.00 | sphere (56%) | 0.854 / 0.058 / 0.284 / 0.936 | 55% | - |
+| `R2_grokking_WE` (prereg) | 1-layer transformer trained on (a+b) mod 113 (Nanda et... / - | 113 x 128 | 32% | 1d / arc, ellipse | **helix** | 0.51 | helix (43%) | 0.185 / 0.299 / 0.191 / 0.494 | 100% | gap<1.5 |
+| `R3_tms_n20` | toy model of superposition, n=20, m=3, sparsity=0.99 / - | 20 x 3 | 100% | 0d / polytope, clusters | **sphere** | 0.84 | sphere (78%) | 0.230 / 0.216 / 0.242 / 0.572 | 95% | - |
+| `R3_tms_n6` (prereg) | toy model of superposition, n=6, m=3, sparsity=0.95 / - | 6 x 3 | 100% | 0d / polytope, clusters | **polytope** | 1.00 | polytope (100%) | 0.447 / 0.002 / 0.215 / 1.129 | 25% | - |
+| `R3_tms_n8` (prereg) | toy model of superposition, n=8, m=3, sparsity=0.97 / - | 8 x 3 | 100% | 0d / polytope, clusters | **polytope** | 1.00 | sphere (56%) | 0.854 / 0.058 / 0.284 / 0.936 | 55% | - |
 | `R4_llama_counting` (prereg) | meta-llama/Llama-3.1-8B / 5 | 150 x 4096 | 69% | 1d / helix | **ringing** | 0.74 | ringing (92%) | 0.094 / 0.257 / 0.133 / 0.094 | 100% | - |
 | `R4b_pythia_counting` | EleutherAI/pythia-410m / 6 | 150 x 1024 | 75% | 1d / helix | **ringing** | 0.86 | ringing (100%) | 0.080 / 0.219 / 0.138 / 0.079 | 100% | - |
 | `R5a_llama_weekdays` (prereg) | meta-llama/Llama-3.1-8B / 5 | 49 x 4096 | 66% | 1d / arc | **helix** | 0.83 | helix (58%) | 0.077 / 0.075 / 0.077 / 0.123 | 100% | gap<1.5 |
@@ -64,10 +64,12 @@ Exploratory, not preregistered: R4b (Pythia-410m counting, layer 6), R5c ("It's 
 <!-- END:real_table -->
 
 **Column notes:**
-- *Fit* is the label for the full cloud.
-- *Subsample majority* is the most frequent label across 200 random 80% subsamples, with the PCA recomputed on each subsample. H3 uses its coarse class.
+- *Fit* is the label for the full cloud, and *p* is its calibrated classifier probability (not a p-value).
+- *Subsample majority* is the most frequent label across 200 random 80% subsamples, with the PCA recomputed on each subsample. H3 uses the most frequent coarse label across the same subsamples.
 - *Held-out residual* is the mean distance of held-out points to shapes fitted on the other 80% of points, in RMS units, using 5 folds.
 - *gap<1.5* flags a λ3/λ4 ratio below 1.5. In that case the top-3 projection may cut through a higher-dimensional manifold.
+- *Matched-Gaussian -> blob* is the fraction of 20 Gaussian clouds with the dataset's N and covariance that are labelled blob (control C2).
+- *OOD* flags a cloud whose residual to its fitted shape is above the 95th percentile of the method's correct synthetic fits in the same N-bin.
 
 ### Preregistered hypotheses H3 and H4
 
@@ -114,7 +116,7 @@ These notes interpret the tables above. Every number they rely on is in a genera
    - Applied post hoc to every full-cloud helix fit with held-out folds, the same rule **accepts** helix for the grokked embeddings, weekdays, months and month means (the "Helix rule" headline line), all described as circles in the literature. The rule separates a helix from PCA ringing, not from a circle or from clusters threaded by a helix.
    - **Learning:** the classifier alone is not enough to claim a helix; the held-out check against ringing is necessary, and a check against circles and clusters is also needed.
 6. **Randomly initialised networks are not structureless.**
-   - The preregistered expectation for C3 (random-init Llama) was *blob*. The fitter instead reports point sets (*clusters* for months and counting, *polytope* for weekdays), and [fig_controls](../docs/figures/fig_controls.png) shows real clusters, one per input token.
+   - The preregistered expectation for C3 (random-init Llama) was *blob*. The fitter instead reports point sets (*clusters* for months and counting, *polytope* for weekdays). For months and weekdays [fig_controls](../docs/figures/fig_controls.png) shows real clusters, one per input token. The counting control is a single streak plus one isolated point; its cluster fit is degenerate (centroids away from the data) and is flagged OOD.
    - A randomly initialised transformer still separates token identities, so the C3 expectation was wrong, not the fitter.
    - Random-init GPT-2 positional embeddings and the untrained grokking embeddings are blobs, as expected. They are i.i.d. random weight rows; no forward pass could separate token identities.
 7. **Ordinal variables give ringing, not lines.**
@@ -129,12 +131,12 @@ These notes interpret the tables above. Every number they rely on is in a genera
    - Pythia's tokenizer adds no BOS token, so each document's first token entered the count bin of its own length. The starting token carries massive activations ([Sun et al. 2024](https://arxiv.org/abs/2402.17762)) and acts as an attention sink ([Xiao et al. 2024](https://arxiv.org/abs/2309.17453)).
    - Sequence position 0 is now skipped for every model. For Llama position 0 is BOS, which was already excluded, so the preregistered Llama datasets are unchanged.
    - After the fix the Pythia cloud is a curve with the same family as Llama's counting cloud, instead of "clusters" made of one outlier plus everything else.
-   - The superseded cloud is kept in `data_cache/real_superseded/`; see [deviations.md](deviations.md).
+   - The superseded cloud was kept locally in `data_cache/real_superseded/`, which is gitignored and not published; see [deviations.md](deviations.md).
 10. **Held-out residuals and subsample labels are unreliable for tiny clouds.**
     - With 6 or 8 toy-model vertices and 5 folds, each fit sees 4–7 points.
     - The network's fit to the remaining vertices does not reach the held-out vertex. The classical fit B1, which tries every polytope template, completes the polytope and gets a near-zero held-out residual.
     - At this N the held-out residual compares extrapolation ability, not fit quality.
     - The same applies to the subsample labels: the 8-feature toy model is a polytope on its full cloud, but most 80% subsamples (6 of 8 vertices) are labelled sphere, which makes it a coarse miss in H3.
 11. **Engineering: free the LLM before the next phase.**
-    - `del model` plus `torch.cuda.empty_cache()` did not release Llama after extraction. accelerate's dispatch hooks wrap `module.forward` in a partial that references the module, a reference cycle that only the garbage collector frees ([accelerate issue #2871](https://github.com/huggingface/accelerate/issues/2871)).
+    - `del model` plus `torch.cuda.empty_cache()` did not release Llama after extraction. accelerate's `add_hook_to_module` sets `module.forward = functools.partial(new_forward, module)` ([hooks.py](https://github.com/huggingface/accelerate/blob/main/src/accelerate/hooks.py)), a reference cycle that only the garbage collector frees (a similar report: [accelerate issue #2871](https://github.com/huggingface/accelerate/issues/2871)).
     - The following evaluation phase ran with 5.7 GB of GPU memory paged into system RAM. `gc.collect()` before `empty_cache()` fixes it.
