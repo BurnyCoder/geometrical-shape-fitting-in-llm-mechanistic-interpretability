@@ -9,7 +9,10 @@ also an ellipse, a helix with tiny pitch is almost a circle). Selection rules (a
   estimated from the most general candidate as eps^2 = J_gen / ((3 - d_gen) N - p_gen)
   (Kanatani 2004, "Uncertainty Modeling and Model Selection for Geometric Inference", IEEE TPAMI 26(10);
   doi:10.1109/TPAMI.2004.93; author copy https://iim.cs.tut.ac.jp/member/kanatani/papers/pamodel2.pdf). The volumetric blob has d = 3; its J is computed
-  like every other family's (refine.py).
+  like every other family's (refine.py). Deviation from Kanatani: J is the distance to the nearest of a
+  finite set of shape samples (512 per curve, a 40 x 40 grid per surface), evaluated at the two-sided
+  refinement optimum rather than at the minimiser of J, so for surfaces it includes discretisation error
+  comparable to the lowest noise levels (reports/deviations.md).
 - hybrid: among candidates whose calibrated probability is >= 0.1 x the top probability, the lowest AIC_G.
 """
 

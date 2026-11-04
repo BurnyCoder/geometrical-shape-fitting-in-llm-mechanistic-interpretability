@@ -4,8 +4,9 @@ Global context: reads results/<run>/synth/per_sample.csv (one row per sample x s
 results/<run>/real/real_results.json, and writes results/<run>/analysis.json. Every number in README,
 reports and paper comes from that file via report/numbers.py (no hand-typed numbers).
 Comparisons with baselines are paired on the baseline subset (identical samples); comparisons with
-ablations that are separate models (A1, A2, A4, A6) are paired on the full test set (same samples,
-same order, from the fixed `test` stream).
+ablations that are separate models (A1, A2, A4, A6) are paired on the fixed method subset that
+scripts/sweep.sh evaluates (eval.method_subset_per_cell = 100 samples per family and cell, same samples
+and order from the fixed `test` stream).
 """
 
 from __future__ import annotations

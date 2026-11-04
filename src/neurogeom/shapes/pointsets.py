@@ -160,7 +160,7 @@ class Clusters(ShapeFamily):
 def _polytope_templates() -> dict[str, torch.Tensor]:
     ang = lambda n, off=0.0: [(math.cos(2 * math.pi * k / n + off), math.sin(2 * math.pi * k / n + off), 0.0) for k in range(n)]
     s3 = 1 / math.sqrt(3)
-    # Regular square antiprism (all edges equal): square radius rho at heights +-h with h = rho * 2^(1/4) / 2,
+    # Uniform (equilateral) square antiprism, not a regular polytope: square radius rho at heights +-h with h = rho * 2^(1/4) / 2,
     # scaled to circumradius 1 (rho^2 + h^2 = 1).
     rho = 1 / math.sqrt(1 + math.sqrt(2) / 4)
     h = rho * 2 ** 0.25 / 2

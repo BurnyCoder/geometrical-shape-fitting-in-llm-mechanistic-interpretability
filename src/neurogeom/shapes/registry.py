@@ -20,8 +20,11 @@ BY_NAME = {f.name: f for f in FAMILIES}
 COARSE_NAMES = ["0d", "1d", "2d", "3d"]
 COARSE = [COARSE_NAMES.index(f.coarse) for f in FAMILIES]
 
-# ground truth family -> more general families that can represent it exactly (limit cases inside their
-# parameter space). Used for the "acceptable-superset" accuracy only; fine accuracy stays strict.
+# ground truth family -> more general families that can represent some of its instances exactly (limit cases
+# inside their parameter space). Not every instance: the paraboloid patch is circular, so elliptical discs are
+# not representable; the closed ellipse covers only full circles; helices span >= 0.25 turns, so arcs under 90
+# degrees are not covered; clusters have k <= 6, so the 8-vertex antiprism is not. The "acceptable-superset"
+# accuracy is therefore an upper bound; fine accuracy stays strict.
 SUPERSETS = {
     "polytope": {"clusters"},
     "line": {"ringing"},          # a2 = a3 = 0 gives a segment

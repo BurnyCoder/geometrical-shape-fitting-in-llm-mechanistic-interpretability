@@ -11,6 +11,7 @@ Global context (expected shapes are preregistered in reports/preregistration.md)
 - R6 years, R7 colors, R8a temperature, R8b age: last token, layer 19, Bhalla et al. 2026 Table 1
   templates; value ranges are not given in the paper and are chosen here (documented in meta).
 - R5c days with times ("It's {time} on {day}", Bhalla et al. Table 1; exploratory, not preregistered).
+  Bhalla et al. list n = 420 prompts; this code uses 7 days x 48 half-hour times = 336.
 - R9 truth: geometry-of-truth `cities` statements (Marks & Tegmark 2024), last token, layer 12.
 """
 

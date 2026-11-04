@@ -1,4 +1,4 @@
-# Smoke test: the whole pipeline end to end in a few minutes (used by tests and CI-like checks).
+# Smoke test: a few minutes of training and evaluation to check the pipeline runs (the tests use the base config).
 run_name: smoke
 train:
   steps: 300
