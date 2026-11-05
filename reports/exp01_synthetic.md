@@ -91,7 +91,7 @@ These notes record what we tried, what went wrong, and how each problem was foun
 1. **Batched small linear algebra on the GPU was the bottleneck, not the model.**
    - The first generator took about 0.3 s per training step. The torch profiler showed `linalg_qr` accounting for 75% of CPU time with 68k kernel launches: in our profile, batched QR on CUDA launched about one kernel per matrix.
    - Fix: random rotations from normalized 4D Gaussians, i.e. uniformly distributed unit quaternions (Shoemake 1992, Graphics Gems III; [`urot.c`, `Qt_RandomG`](https://github.com/erich666/GraphicsGems/blob/master/gemsiii/urot.c)); determinants via the triple product; tiny SVDs and eigendecompositions moved to the CPU.
-   - FP64 `eigh` on the GPU was also slow, because consumer GPUs (compute capability 8.6, 8.9, 12.0) run FP64 at 1/64 of FP32 throughput ([CUDA C++ Best Practices Guide, arithmetic instruction throughput](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/)). It now runs in FP32 on the GPU, with FP64 kept for real data on the CPU.
+   - FP64 `eigh` on the GPU was also slow, because consumer GPUs (compute capability 8.6, 8.9, 12.0) run FP64 at 1/64 of FP32 throughput ([CUDA Programming Guide, Compute Capabilities, row "Ratio of FP32 to FP64 Throughput": 64:1](https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/compute-capabilities.html)). It now runs in FP32 on the GPU, with FP64 kept for real data on the CPU.
    - Result: the generator became about 7× faster, at 0.04 s per step.
 2. **Training is kernel-launch bound.**
    - The GPU was busy for only about 20% of each step. A batch of 512 costs about the same wall time as a batch of 256, so throughput doubled.
