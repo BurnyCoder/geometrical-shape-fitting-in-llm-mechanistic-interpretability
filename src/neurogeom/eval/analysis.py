@@ -3,6 +3,9 @@
 Global context: reads results/<run>/synth/per_sample.csv (one row per sample x system) and
 results/<run>/real/real_results.json, and writes results/<run>/analysis.json. Every number in README,
 reports and paper comes from that file via report/numbers.py (no hand-typed numbers).
+Every synthetic CI is a cluster bootstrap over generator chunks (clouds of one chunk share N and the R^D-embedding
+draw; audit 2026-11-14), and Wilcoxon tests use per-chunk mean differences. Post-hoc checks (not preregistered) are
+kept apart under "posthoc" and the "*_posthoc" keys.
 Comparisons with baselines are paired on the baseline subset (identical samples); comparisons with
 ablations that are separate models (A1, A2, A4, A6) are paired on the fixed method subset that
 scripts/sweep.sh evaluates (eval.method_subset_per_cell = 100 samples per family and cell, same samples
@@ -18,6 +21,7 @@ import numpy as np
 import pandas as pd
 import torch
 
+from neurogeom.data.testsets import CHUNK
 from neurogeom.eval.stats import (binom_ci, bootstrap_ci, bootstrap_ci_pairs, ece, fit_temperature, holm, macro_f1, paired_bootstrap,
                                   paired_bootstrap_f1, wilcoxon_p)
 from neurogeom.logging_utils import get_logger
@@ -26,15 +30,24 @@ from neurogeom.realdata.common import is_prereg
 log = get_logger(__name__)
 
 
+def cluster_ids(sample_ids: pd.Series, chunk: int) -> pd.Series:
+    """Cluster of dependent test clouds = the generator chunk a cloud came from (its clouds share N and the R^D-embedding
+    draw, data/testsets.py). sample_id is '<n_bin>-<noise_bin>-<index in cell>'; each family fills a consecutive block of
+    test_per_cell clouds generated in chunks of `chunk`, so index // chunk identifies the chunk (audit 2026-11-14)."""
+    parts = sample_ids.str.split("-", expand=True)
+    return parts[0] + "-" + parts[1] + "-" + (parts[2].astype(int) // chunk).astype(str)
+
+
 def system_summary(df: pd.DataFrame, reps: int) -> dict:
     out = {}
     for sysname, g in df.groupby("system"):
-        acc = bootstrap_ci(g.correct.astype(float), reps=reps)
-        f1 = bootstrap_ci_pairs(g.family_true, g.family_pred, macro_f1, reps=reps)   # same replicate count as every CI (prereg Sec. 5.2)
-        cd = bootstrap_ci(g.chamfer.values, stat=np.median, reps=reps)
+        cl = g.cluster.values                                                      # cluster bootstrap over generator chunks
+        acc = bootstrap_ci(g.correct.astype(float), reps=reps, groups=cl)
+        f1 = bootstrap_ci_pairs(g.family_true, g.family_pred, macro_f1, reps=reps, groups=cl)   # same replicate count as every CI (prereg Sec. 5.2)
+        cd = bootstrap_ci(g.chamfer.values, stat=np.median, reps=reps, groups=cl)
         out[sysname] = {
-            "n": int(len(g)), "fine_acc": acc, "macro_f1": f1, "coarse_acc": bootstrap_ci(g.coarse_correct.astype(float), reps=reps),
-            "superset_acc": bootstrap_ci(g.superset_ok.astype(float), reps=reps), "median_chamfer": cd,
+            "n": int(len(g)), "fine_acc": acc, "macro_f1": f1, "coarse_acc": bootstrap_ci(g.coarse_correct.astype(float), reps=reps, groups=cl),
+            "superset_acc": bootstrap_ci(g.superset_ok.astype(float), reps=reps, groups=cl), "median_chamfer": cd,
             "mean_chamfer": float(g.chamfer.mean()), "mean_residual": float(g.residual.mean()),
             "median_axis_err_deg": float(np.nanmedian(g.axis_err_deg)) if g.axis_err_deg.notna().any() else None,
             "median_logscale_err": float(np.nanmedian(g.logscale_err)) if g.logscale_err.notna().any() else None,
@@ -42,8 +55,10 @@ def system_summary(df: pd.DataFrame, reps: int) -> dict:
     return out
 
 
-def breakdown(df: pd.DataFrame, key: str) -> dict:
-    return {s: {int(k): {"fine_acc": float(v.correct.mean()), "median_chamfer": float(v.chamfer.median()), "n": int(len(v))}
+def breakdown(df: pd.DataFrame, key: str, reps: int) -> dict:
+    """Fine accuracy (with a cluster-bootstrap 95% CI, for the figure error bars) and median Chamfer per system and bin."""
+    return {s: {int(k): {"fine_acc": float(v.correct.mean()), "median_chamfer": float(v.chamfer.median()), "n": int(len(v)),
+                         "fine_acc_ci": list(bootstrap_ci(v.correct.astype(float).values, reps=reps, groups=v.cluster.values)[1:])}
                 for k, v in g.groupby(key)} for s, g in df.groupby("system")}
 
 
@@ -63,11 +78,12 @@ def paired(df: pd.DataFrame, a: str, b: str, reps: int) -> dict | None:
     if len(common) == 0:
         return None
     ga, gb = ga.loc[common], gb.loc[common]
-    f1 = paired_bootstrap_f1(ga.family_true.values, ga.family_pred.values, gb.family_pred.values, reps=reps)
-    cd = paired_bootstrap(ga.chamfer.values, gb.chamfer.values, stat=np.median, reps=reps)
-    return {"n": int(len(common)), "macro_f1_diff": f1, "median_chamfer_diff": cd,
-            "fine_acc_diff": paired_bootstrap(ga.correct.astype(float).values, gb.correct.astype(float).values, reps=reps),
-            "wilcoxon_p_chamfer": wilcoxon_p(ga.chamfer.values, gb.chamfer.values)}
+    cl = ga.cluster.values                                                         # resample whole generator chunks
+    f1 = paired_bootstrap_f1(ga.family_true.values, ga.family_pred.values, gb.family_pred.values, reps=reps, groups=cl)
+    cd = paired_bootstrap(ga.chamfer.values, gb.chamfer.values, stat=np.median, reps=reps, groups=cl)
+    return {"n": int(len(common)), "n_clusters": int(len(set(cl))), "macro_f1_diff": f1, "median_chamfer_diff": cd,
+            "fine_acc_diff": paired_bootstrap(ga.correct.astype(float).values, gb.correct.astype(float).values, reps=reps, groups=cl),
+            "wilcoxon_p_chamfer": wilcoxon_p(ga.chamfer.values, gb.chamfer.values, groups=cl)}
 
 
 def _f1_pvalue(lo: float, hi: float, est: float) -> float:
@@ -105,6 +121,24 @@ def hypotheses_synth(df: pd.DataFrame, reps: int, ablation_frames: dict) -> dict
     return h
 
 
+def posthoc_synth(df: pd.DataFrame, reps: int) -> dict:
+    """Post-hoc checks added by the 2026-11-14 audit (not preregistered, outside the Holm family):
+    - blob recall and blob predictions per system: geometric AIC with the noise level estimated from the best
+      non-volumetric candidate can never select the d = 3 blob (B1, A5_gaic; reports/deviations.md);
+    - the method-vs-B1 comparison restricted to clouds whose true family is not blob;
+    - the comparison with the corrected classical baseline B1-fixed, if it has been run."""
+    out = {"blob_recall": {s: float(g[g.family_true == "blob"].correct.mean()) for s, g in df.groupby("system")},
+           "blob_predicted": {s: int((g.family_pred == "blob").sum()) for s, g in df.groupby("system")}}
+    nb = df[df.family_true != "blob"]
+    out["nonblob"] = {"accuracy": {s: float(g.correct.mean()) for s, g in nb.groupby("system")},
+                      "macro_f1": {s: macro_f1(g.family_true, g.family_pred) for s, g in nb.groupby("system")},
+                      "method_vs_B1": paired(nb, "method", "B1_classical", reps)}
+    if (df.system == "B1_fixed").any():
+        out["method_vs_B1_fixed"] = paired(df, "method", "B1_fixed", reps)
+        out["B1_fixed_vs_B1"] = paired(df, "B1_fixed", "B1_classical", reps)
+    return out
+
+
 def calibration(res_dir: Path) -> dict | None:
     """ECE (15 bins) and NLL of the classifier on the synthetic test set before (T = 1) and after temperature scaling
     (preregistration Sec. 5.4). probs.npz holds p = softmax(l / T), so l = T log p up to a per-sample constant.
@@ -135,9 +169,15 @@ def hypotheses_real(results: list[dict], seed: int = 0) -> dict:
     exp = np.array([r["meta"]["expected_coarse"] for r in pre])
     null = [int((rng.permutation(preds) == exp).sum()) for _ in range(10000)]
     p_perm = float((np.array(null) >= k).mean())
+    fine_ok = lambda fam, r: fam in (r["meta"].get("expected_fine") or [])
     h3 = {"agree": k, "n": n, "rate": k / max(n, 1), "ci": binom_ci(k, n) if n else None, "p_permutation": p_perm,
           # post hoc (not preregistered): the same count with the full-cloud label instead of the subsample majority
           "agree_full_cloud_posthoc": int(sum(r["coarse"] == r["meta"]["expected_coarse"] for r in pre)),
+          # post hoc (audit 2026-11-14): trivial baseline = always predict the most frequent expected coarse label,
+          # and agreement at the level of the exact family (subsample majority / full cloud)
+          "constant_majority_agree_posthoc": int(max(np.unique(exp, return_counts=True)[1])) if n else 0,
+          "fine_agree_subsample_posthoc": int(sum(fine_ok(r.get("stability", {}).get("fine_majority", r["family"]), r) for r in pre)),
+          "fine_agree_full_cloud_posthoc": int(sum(fine_ok(r["family"], r) for r in pre)),
           "supported": n > 0 and k / n >= 0.5 and p_perm < 0.05,
           "per_dataset": {r["id"]: {"predicted_coarse": lab(r), "expected_coarse": r["meta"]["expected_coarse"],
                                     "predicted_fine": r.get("stability", {}).get("fine_majority", r["family"]),
@@ -150,7 +190,11 @@ def hypotheses_real(results: list[dict], seed: int = 0) -> dict:
     # post-hoc breakdown (not preregistered): smooth Gaussian processes and random walks separately
     by_proc = {k: {fam: float(np.mean([r["family"] == fam for r in c1 if r["id"].startswith(f"C1_{k}_")]))
                    for fam in ("helix", "ringing")} for k in ("gp", "walk") if any(r["id"].startswith(f"C1_{k}_") for r in c1)}
+    # post hoc (audit 2026-11-14): the preregistered criterion read per dataset ("blob in >= 80%"), over preregistered datasets only
+    c2_pre = [r["C2_matched_gaussian"].get("blob", 0.0) for r in results if "C2_matched_gaussian" in r and r["id"].startswith("R") and is_prereg(r)]
     h4 = {"C2_blob_rate_mean": blob_rate, "C2_per_dataset": {r["id"]: r["C2_matched_gaussian"] for r in results if "C2_matched_gaussian" in r},
+          "C2_blob_rate_mean_prereg_posthoc": float(np.mean(c2_pre)) if c2_pre else None,
+          "C2_prereg_at_least_80_posthoc": int(sum(v >= 0.8 for v in c2_pre)), "C2_prereg_n_posthoc": len(c2_pre),
           "C1_ringing_rate": ring, "C1_helix_rate": helix, "C1_labels": {r["id"]: r["family"] for r in c1}, "C1_by_process_posthoc": by_proc,
           "supported": blob_rate is not None and blob_rate >= 0.8 and ring is not None and ring > helix}
     c3 = {r["id"]: r["family"] for r in results if r["id"].startswith("C3_")}
@@ -165,6 +209,8 @@ def run_analysis(cfg: dict, ablation_runs: dict | None = None) -> dict:
     res_dir = Path(cfg["paths"]["results"])
     reps = cfg["eval"]["bootstrap_reps"]
     df = pd.read_csv(res_dir / "synth" / "per_sample.csv", low_memory=False)
+    assert cfg["eval"]["test_per_cell"] % CHUNK == 0, "cluster ids assume every family block is a whole number of generator chunks"
+    df["cluster"] = cluster_ids(df.sample_id, CHUNK)
     # the method restricted to the baseline subset, so every row of the main table can be compared on the same clouds
     base_ids = set(df[df.system == "B1_classical"].sample_id)
     if base_ids:
@@ -176,11 +222,13 @@ def run_analysis(cfg: dict, ablation_runs: dict | None = None) -> dict:
             a = pd.read_csv(p, low_memory=False)
             a = a[a.system == "method"].copy()
             a["system"] = name
+            a["cluster"] = cluster_ids(a.sample_id, CHUNK)
             abl[name] = a
     full = pd.concat([df] + list(abl.values()))
-    out = {"systems": system_summary(full, reps), "by_n_bin": breakdown(full, "n_bin"), "by_noise_bin": breakdown(full, "noise_bin"),
+    out = {"systems": system_summary(full, reps), "by_n_bin": breakdown(full, "n_bin", reps), "by_noise_bin": breakdown(full, "noise_bin", reps),
            "per_family": per_family(full), "confusion_method": confusion(df, "method"),
-           "hypotheses": hypotheses_synth(df, reps, abl), "calibration": calibration(res_dir)}
+           "hypotheses": hypotheses_synth(df, reps, abl), "posthoc": posthoc_synth(df, reps), "calibration": calibration(res_dir),
+           "ci_method": f"cluster bootstrap over generator chunks of {CHUNK} clouds (audit 2026-11-14)"}
     if "ambiguous" in df:
         ids = set(df[(df.system == "B1_classical") & (df.ambiguous == True)].sample_id)  # noqa: E712
         sub = df[(df.system != "method_subset") & ~df.sample_id.isin(ids) & df.sample_id.isin(base_ids)]
