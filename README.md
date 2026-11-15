@@ -25,24 +25,27 @@ The hypotheses, metrics and falsification criteria were preregistered before any
 ### Highlights (generated)
 
 <!-- BEGIN:headline -->
-- **Synthetic test set (39,000 clouds, 13 families):** the method picks the correct family in 87.9% [87.6, 88.2] of clouds; median Chamfer distance to the ground-truth shape 0.156 (RMS-radius units).
-- **Same 3,120 clouds for every system:** method 87.4% [86.2, 88.5], B2 features + boosting 64.5% [62.8, 66.2], B1 classical fit + geometric AIC 52.2% [50.6, 54.0], trivial baselines 7.7-7.9%.
-- **H1** (macro-F1 method - B1): 0.3741 [0.3572, 0.3905], Holm p < 1e-16: supported.
-- **H2** (median Chamfer method - B1): -0.0554 [-0.0645, -0.0462], Holm p < 1e-16: supported.
-- **H5b_refinement** (median Chamfer method - no refinement): -0.0033 [-0.0046, -0.0021], Holm p < 1e-16: supported.
-- **Selection rule:** choosing the family by geometric AIC instead of the classifier drops accuracy to 64.6% [64.1, 65.1].
+- **Synthetic test set (39,000 clouds, 13 families):** the method picks the correct family in 87.9% [86.9, 88.9] of clouds; median Chamfer distance to the ground-truth shape 0.156 (RMS-radius units).
+- **Same 3,120 clouds for every system:** method 87.4% [83.7, 90.9], B2 features + boosting 64.5% [59.0, 70.3], B1 classical fit + geometric AIC 52.2% [47.2, 57.5], B1-fixed (post hoc) 54.0% [49.0, 58.7], trivial baselines 7.7-7.9%.
+- **H1** (macro-F1 method - B1): 0.3741 [0.3410, 0.4095], Holm p < 1e-16: supported.
+- **H2** (median Chamfer method - B1): -0.0554 [-0.0766, -0.0412], Holm p < 1e-16: supported.
+- **H5b_refinement** (median Chamfer method - no refinement): -0.0033 [-0.0055, -0.0011], Holm p < 1e-16: supported.
+- **Selection rule:** choosing the family by geometric AIC instead of the classifier drops accuracy to 64.6% [63.0, 66.0]. On clouds whose true family is not blob, A5 reaches 70.0% vs the method's 88.1%.
+- **Geometric AIC cannot select the blob (post hoc, audit 2026-11-14):** B1 and the A5 G-AIC rule output blob for 0% and 0% of blob clouds (the method: 86%), a structural property of the noise estimate (proof in reports/deviations.md). On the clouds whose true family is not blob, macro-F1 is 0.880 (method) vs 0.561 (B1), difference 0.319 [0.285, 0.356].
+- **B1-fixed (post hoc; B1 with per-cloud cluster counts, exact residuals and a blob threshold tau = 0.213 fitted on 780 validation clouds):** accuracy 54.0% [49.0, 58.7]; method - B1-fixed macro-F1 0.338 [0.306, 0.375], median Chamfer -0.0608 [-0.0846, -0.0454]. Against B1, the repairs change macro-F1 by +0.036 [0.011, 0.055] and recover 55% of blob clouds.
 - **Calibration:** temperature T = 0.772 (fitted on the validation stream) lowers ECE from 0.044 to 0.022 and NLL from 0.397 to 0.373; the NLL-optimal T on the test set itself is 0.784.
-- **H3, real activations:** the coarse shape class (point set / curve / surface / blob; majority label over random 80% subsamples) agrees with the literature on 7/12 preregistered datasets (exact 95% CI 28-85%), label-permutation p = 0.125: not supported. Post hoc, with the full-cloud label instead of the subsample majority: 8/12.
-- **H4, controls:** matched-covariance Gaussians are labelled blob 86% of the time (mean over all 17 real datasets, exploratory ones included); ordinal-process controls ringing 60% vs helix 40%: supported. Post hoc: smooth Gaussian processes alone are labelled helix in 80%, random walks in 0%.
+- **H3, real activations:** the coarse shape class (point set / curve / surface / blob; majority label over random 80% subsamples) agrees with the literature on 7/12 preregistered datasets (exact 95% CI 28-85%), label-permutation p = 0.125: not supported. Post hoc, with the full-cloud label instead of the subsample majority: 8/12. For reference (post hoc): always answering the most frequent expected class, curve, agrees on 8/12; the exact family agrees on 1/12 (full cloud: 2/12).
+- **H4, controls:** matched-covariance Gaussians are labelled blob 86% of the time (mean over all 17 real datasets, exploratory ones included); ordinal-process controls ringing 60% vs helix 40%: supported (mean criterion); 10/12 preregistered datasets reach 80%. Post hoc: smooth Gaussian processes alone are labelled helix in 80%, random walks in 0%.
 - **Helix rule (post hoc, every full-cloud helix fit with held-out folds):** the preregistered two-part rule rejects the helix claim for `C1_gp_0` and accepts it for `R2_grokking_WE`, `R5a_llama_weekdays`, `R5b_llama_months`, `R5b_llama_months_means`, all of which are expected to be non-helix shapes, so the rule is necessary, not sufficient.
+- **Error bars:** 95% cluster bootstrap over generator chunks of 25 clouds (audit 2026-11-14), because clouds generated together share N and the R^D-embedding draw.
 <!-- END:headline -->
 
 **In plain words.**
 - **Where the method is better.** On computer-generated shapes it names the right shape far more often than the classical approach of fitting every shape and picking one by geometric AIC, or a classifier on hand-made features. Its fitted shapes are also closer to the true ones.
   - Against the classical approach, the gap grows with the number of points; against the feature classifier, it is largest for the smallest clouds ([accuracy by N](docs/figures/fig_by_n.png)).
-  - The classical approach loses mostly at *choosing* the family, not at fitting it.
+  - The classical approach loses largely at *choosing* the family. Part of that is a defect found in an independent audit: its selection rule (geometric AIC with the noise estimated from the best surface) can never answer "blob". A repaired version (B1-fixed) does only slightly better than the original, so the method's advantage does not come from that defect.
   - Test-time refinement makes the shape hug the points more tightly, but never changes which family is chosen.
-- **Where it is worse or fails.** On real activations its coarse shape class agrees with the literature on a little over half of the preregistered datasets, which is not more often than a label-permutation null. Inspecting the clouds afterwards suggests causes (not tested):
+- **Where it is worse or fails.** On real activations its coarse shape class agrees with the literature on a little over half of the preregistered datasets. That is not more often than a label-permutation null, nor than always answering "curve". The exact shape family rarely matches (H3 line in the highlights). Inspecting the clouds afterwards suggests causes (not tested):
   - shapes outside its 13 families, such as GPT-2's spiral of positions, which it calls a sphere;
   - clouds whose top 3 principal components hold only a fraction of the variance (years);
   - clouds unlike any training shape (age, true/false statements);
@@ -63,16 +66,17 @@ Every number and figure in this section is generated by `uv run python run.py re
 <!-- BEGIN:results_table -->
 | System | n | Fine accuracy [95% CI] | Macro-F1 [95% CI] | Coarse accuracy | Superset-OK accuracy | Median Chamfer to GT [95% CI] | Mean residual | Median axis error (deg) |
 |---|---|---|---|---|---|---|---|---|
-| Method (network + refinement) | 39000 | 87.9% [87.6, 88.2] | 0.879 [0.876, 0.882] | 92.7% | 88.4% | 0.156 [0.154, 0.158] | 0.105 | 1.1 |
-| Method, baseline subset | 3120 | 87.4% [86.2, 88.5] | 0.873 [0.862, 0.884] | 92.3% | 87.9% | 0.154 [0.147, 0.161] | 0.106 | 1.0 |
-| A3: no refinement | 39000 | 87.9% [87.6, 88.2] | 0.879 [0.876, 0.882] | 92.7% | 88.4% | 0.159 [0.157, 0.162] | 0.120 | 1.5 |
-| A5: G-AIC selection | 39000 | 64.6% [64.1, 65.1] | 0.627 [0.623, 0.631] | 77.5% | 68.8% | 0.182 [0.179, 0.185] | 0.108 | 0.8 |
-| A5: hybrid selection | 39000 | 85.6% [85.2, 85.9] | 0.858 [0.854, 0.861] | 91.1% | 86.6% | 0.157 [0.155, 0.159] | 0.103 | 1.1 |
-| B1: classical fit + G-AIC | 3120 | 52.2% [50.6, 54.0] | 0.499 [0.484, 0.514] | 70.7% | 58.1% | 0.209 [0.200, 0.221] | 0.117 | 0.7 |
-| B2: features + boosting | 3120 | 64.5% [62.8, 66.2] | 0.645 [0.628, 0.661] | 85.1% | 68.0% | 0.237 [0.221, 0.255] | 0.120 | 1.1 |
-| B3a: always blob | 3120 | 7.7% [6.8, 8.7] | 0.011 [0.010, 0.012] | 7.7% | 7.7% | 0.543 [0.536, 0.550] | 0.120 | 11.7 |
-| B3b: always arc (B1 arc fit) | 3120 | 7.7% [6.8, 8.6] | 0.011 [0.010, 0.012] | 38.5% | 7.7% | 0.545 [0.536, 0.555] | 0.276 | 0.5 |
-| B3c: random shape | 3120 | 7.9% [7.1, 8.8] | 0.079 [0.070, 0.088] | 32.9% | 10.9% | 1.116 [1.100, 1.137] | 0.589 | 58.3 |
+| Method (network + refinement) | 39000 | 87.9% [86.9, 88.9] | 0.879 [0.869, 0.889] | 92.7% | 88.4% | 0.156 [0.148, 0.164] | 0.105 | 1.1 |
+| Method, baseline subset | 3120 | 87.4% [83.7, 90.9] | 0.873 [0.829, 0.904] | 92.3% | 87.9% | 0.154 [0.133, 0.180] | 0.106 | 1.0 |
+| A3: no refinement | 39000 | 87.9% [86.9, 88.9] | 0.879 [0.869, 0.889] | 92.7% | 88.4% | 0.159 [0.152, 0.167] | 0.120 | 1.5 |
+| A5: G-AIC selection | 39000 | 64.6% [63.0, 66.0] | 0.627 [0.616, 0.637] | 77.5% | 68.8% | 0.182 [0.173, 0.192] | 0.108 | 0.8 |
+| A5: hybrid selection | 39000 | 85.6% [84.4, 86.8] | 0.858 [0.846, 0.869] | 91.1% | 86.6% | 0.157 [0.149, 0.165] | 0.103 | 1.1 |
+| B1: classical fit + G-AIC | 3120 | 52.2% [47.2, 57.5] | 0.499 [0.453, 0.533] | 70.7% | 58.1% | 0.209 [0.183, 0.249] | 0.117 | 0.7 |
+| B1-fixed: repaired classical fit (post hoc) | 3120 | 54.0% [49.0, 58.7] | 0.535 [0.486, 0.571] | 70.2% | 59.7% | 0.215 [0.190, 0.253] | 0.098 | 0.9 |
+| B2: features + boosting | 3120 | 64.5% [59.0, 70.3] | 0.645 [0.582, 0.691] | 85.1% | 68.0% | 0.237 [0.194, 0.300] | 0.120 | 1.1 |
+| B3a: always blob | 3120 | 7.7% [3.8, 12.2] | 0.011 [0.006, 0.017] | 7.7% | 7.7% | 0.543 [0.524, 0.573] | 0.120 | 11.7 |
+| B3b: always arc (B1 arc fit) | 3120 | 7.7% [3.8, 12.2] | 0.011 [0.006, 0.017] | 38.5% | 7.7% | 0.545 [0.521, 0.570] | 0.276 | 0.5 |
+| B3c: random shape | 3120 | 7.9% [7.0, 8.9] | 0.079 [0.068, 0.087] | 32.9% | 10.9% | 1.116 [1.074, 1.159] | 0.589 | 58.3 |
 <!-- END:results_table -->
 
 ![systems](docs/figures/fig_systems.png)
@@ -121,11 +125,14 @@ What the real-data results mean, and why each failure happens, is in [exp02's le
 <!-- BEGIN:hypotheses_table -->
 | Hypothesis | Comparison | Estimate [95% CI] | p (Holm) | n | Verdict |
 |---|---|---|---|---|---|
-| H1 | macro-F1(method) - macro-F1(B1) | 0.3741 [0.3572, 0.3905] | < 1e-16 | 3120 | supported |
-| H2 | median Chamfer(method) - median Chamfer(B1) | -0.0554 [-0.0645, -0.0462] | < 1e-16 | 3120 | supported |
-| H5b_refinement | median Chamfer(method) - median Chamfer(no refinement) | -0.0033 [-0.0046, -0.0021] | < 1e-16 | 39000 | supported |
-| H3 | Coarse-label agreement (subsample majority) with literature on preregistered real datasets | 7/12 = 58% [28, 85] (exact binomial) | perm. p = 0.125 | 12 | not supported |
-| H4 | Controls: matched Gaussians -> blob (mean over 17 real datasets); ordinal processes -> ringing (not helix) | blob rate 86%; ringing 60% vs helix 40% | - | - | supported |
+| H1 | macro-F1(method) - macro-F1(B1) | 0.3741 [0.3410, 0.4095] | < 1e-16 | 3120 | supported |
+| H2 | median Chamfer(method) - median Chamfer(B1) | -0.0554 [-0.0766, -0.0412] | < 1e-16 | 3120 | supported |
+| H5b_refinement | median Chamfer(method) - median Chamfer(no refinement) | -0.0033 [-0.0055, -0.0011] | < 1e-16 | 39000 | supported |
+| H1, post hoc | macro-F1(method) - macro-F1(B1), clouds whose true family is not blob | 0.3191 [0.2848, 0.3560] | - | 2880 | method better |
+| H1, post hoc | macro-F1(method) - macro-F1(B1-fixed) | 0.3381 [0.3062, 0.3746] | - | 3120 | method better |
+| H2, post hoc | median Chamfer(method) - median Chamfer(B1-fixed) | -0.0608 [-0.0846, -0.0454] | < 1e-16 (unadjusted) | 3120 | method better |
+| H3 | Coarse-label agreement (subsample majority) with literature on preregistered real datasets | 7/12 = 58% [28, 85] (exact binomial); post hoc: constant 'curve' 8/12, exact family 1/12 | perm. p = 0.125 | 12 | not supported |
+| H4 | Controls: matched Gaussians -> blob (mean over 17 real datasets); ordinal processes -> ringing (not helix) | blob rate 86%; ringing 60% vs helix 40% | - | - | supported (mean criterion); 10/12 preregistered datasets reach 80% |
 <!-- END:hypotheses_table -->
 
 More detail: [reports/summary.md](reports/summary.md), [exp01 (synthetic)](reports/exp01_synthetic.md), [exp02 (real activations)](reports/exp02_real_activations.md), [deviations from the preregistration](reports/deviations.md).
@@ -195,6 +202,8 @@ run.py <phase>
   catalog       catalog.yaml -> docs/shape_catalog.md, paper/generated/catalog_table.tex
   train         on-the-fly synthetic batches -> checkpoints/<run>/final.pt (+ last.pt), results/<run>/train/{curve,summary}.json
   eval-synth    fixed test set (seed stream "test") -> method vs. baselines vs. ablations -> results/<run>/synth/
+  tune-b1-fixed post hoc: fits B1-fixed's blob threshold on 780 validation clouds -> results/<run>/synth/b1_fixed_tau.json
+  eval-b1-fixed post hoc: B1-fixed on the 3,120-cloud baseline subset (resumable per cell) -> B1_fixed rows in per_sample.csv
   extract-real  real activations (GPT-2 W_pos, grokked model, toy models, Llama-3.1-8B prompts) -> data_cache/real/*.npz
   eval-real     top-3 PCA -> fitter (+ subsampling stability, held-out residual, controls) -> results/<run>/real/
   report        regenerates every table, figure and number in README / reports / paper from results/ (except the gallery figure and the catalog table)
@@ -207,10 +216,10 @@ Each phase writes a timestamped log to `logs/`. `run.py all` runs every phase ex
 
 Data flow for one run:
 1. **Training.** `train` draws fresh synthetic clouds every step. All 13 families are generated, perturbed, sometimes embedded in R^D, then PCA-normalized. The Set Transformer learns to classify them and regress their parameters, and the result is saved to `checkpoints/<run>/final.pt`.
-2. **Synthetic evaluation.** `eval-synth` first fits a temperature on the validation stream. It then fits every cloud of the fixed test set with the method and its inference ablations (A3, A5), and a fixed 3,120-cloud subset with the baselines (B1–B3), and writes one row per cloud and system to `results/<run>/synth/per_sample.csv`.
+2. **Synthetic evaluation.** `eval-synth` first fits a temperature on the validation stream. It then fits every cloud of the fixed test set with the method and its inference ablations (A3, A5), and a fixed 3,120-cloud subset with the baselines (B1–B3), and writes one row per cloud and system to `results/<run>/synth/per_sample.csv`. The post-hoc `tune-b1-fixed` and `eval-b1-fixed` phases add the repaired classical baseline to the same file.
 3. **Activation extraction.** `extract-real` runs the models on the prompts, logs the prompts (in full, except the counting corpus: the first 200 characters per document for Llama, none for the exploratory Pythia run), and stores one activation matrix per dataset in `data_cache/real/`. It also builds the control clouds.
 4. **Real-data evaluation.** `eval-real` projects each matrix to its top-3 PCs and fits it. For every dataset except 18 of the 20 ordinal-process controls (full-cloud fit only), it also runs 200 subsample refits, 5 held-out folds and 20 matched-Gaussian controls. It writes `results/<run>/real/real_results.json`.
-5. **Reporting.** `report` computes the preregistered statistics in `analysis.json`. From those files it rewrites the tables in this README and in `reports/`, the LaTeX tables and macros in `paper/generated/`, and the figures in `docs/figures/` (the gallery figure comes from `gallery`).
+5. **Reporting.** `report` computes the preregistered statistics (cluster-bootstrap CIs over generator chunks) and the post-hoc audit checks in `analysis.json`. From those files it rewrites the tables in this README and in `reports/`, the LaTeX tables and macros in `paper/generated/`, and the figures in `docs/figures/` (the gallery figure comes from `gallery`).
 
 ## Installation and usage
 
@@ -252,6 +261,12 @@ Evaluate it on synthetic data and real activations, then rebuild every table, fi
 uv run python run.py eval-synth gallery extract-real eval-real report site --config main.yaml
 ```
 
+Add the post-hoc repaired classical baseline B1-fixed: fit its blob threshold on validation clouds (about 40 min), then run it on the baseline subset (about 2 h, resumable per cell). Re-run `report site` afterwards:
+
+```bash
+uv run python run.py tune-b1-fixed eval-b1-fixed --config main.yaml
+```
+
 Rebuild the tables, figures and paper macros from the stored `analysis.json` without re-running the bootstraps:
 
 ```bash
@@ -278,9 +293,18 @@ Llama-3.1-8B is gated. Accept its license on Hugging Face, or use the ungated mi
 - `src/neurogeom/`: the package, with one subpackage per phase: `geometry`, `shapes`, `data`, `model`, `train`, `infer`, `baselines`, `realdata`, `eval` and `report`.
 - `configs/`: YAML configs. `base.yaml` holds the defaults; `smoke.yaml`, `main.yaml` and the ablation configs override them.
 - `tests/`: pytest suite covering geometry, every shape family, the generator, the model and the loss.
-- `reports/`: the preregistration, per-experiment reports and the summary.
+- `reports/`: the preregistration, deviations, plan and status, per-experiment reports and the summary.
 - `docs/`: the catalog and the methodology.
 - `paper/`: the paper source.
+
+## To do
+The full plan and its status are in [reports/plan.md](reports/plan.md).
+- Trained ablations A0, A1, A2, A4 and A6, including H5a (`bash scripts/sweep.sh ablations`).
+- Seeds 1–2 and hyperparameter sensitivity (`bash scripts/sweep.sh sensitivity`), then the preregistered hierarchical bootstrap over seeds.
+- The preregistered OOD synthetic set: 4D flat torus, two-frequency Fourier circles and the multi-period number helix.
+- The real-data B1 column with B1-fixed, and an ambiguity tag that does not depend on B1's fits.
+- A B1-fixed variant restricted to k < N clusters. With k ≤ N, geometric AIC picks degenerate one-point-per-cluster fits on the smallest clouds.
+- Next models suggested by the failures: a coverage check, a Fourier-curve family, more cluster centroids, a helix test against circles and clusters, and abstention outside the training distribution.
 
 ## Technologies
 PyTorch 2.14.1 (pinned, CUDA 13.0 wheels), Hugging Face transformers, NumPy and SciPy, scikit-learn, ripser.py, matplotlib, plotly.js (explorer, loaded from a CDN), uv and pytest.

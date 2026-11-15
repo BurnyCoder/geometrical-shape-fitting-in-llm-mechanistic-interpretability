@@ -30,14 +30,16 @@ This file tracks the project plan and its status. Results live in [summary.md](s
 - [x] Post-hoc outputs: blob recall, non-blob H1/H2, H3 constant baseline and fine agreement, H4 per-dataset count.
 - [x] B1-fixed implemented with tests: per-cloud cluster candidates, exact point-to-shape J, and a blob null test with τ fitted on `val`. Smoke-tested.
 - [x] Deviations written, including the B1-fixed pre-specification (before the test run).
-- [ ] Push the code and pre-specification before the long runs.
-- [ ] `run.py tune-b1-fixed` on 780 `val` clouds (about 30–40 min GPU).
-- [ ] `run.py eval-b1-fixed` on the 3,120-cloud baseline subset (about 2 h GPU, resumable per cell).
-- [ ] Generators: headline lines, H4 verdict text, unambiguous-table caption, LaTeX macros, error bars on the by-N and by-noise figures.
-- [ ] Text: README, summary, exp01, exp02, methodology, paper. Covers the "strongest" wording, the A5 attribution, "Successes" → "Coarse agreements", the B1-conditioned unambiguous table, the cluster bootstrap and the limitations.
+- [x] Push the code and pre-specification before the long runs (branch `fix/audit-2026-11-14`, 2026-11-15 01:17).
+- [x] `run.py tune-b1-fixed` on 780 `val` clouds (60 min GPU; tau saved in `results/main_s0/synth/b1_fixed_tau.json`).
+- [x] `run.py eval-b1-fixed` on the 3,120-cloud baseline subset (138 min GPU). B1-fixed is only slightly better than B1; H1/H2 hold against it.
+- [x] Generators: headline lines, H4 verdict text, post-hoc rows, LaTeX macros, error bars on the by-N and by-noise figures. Macro-F1 is now a bincount implementation identical to sklearn, and the analysis takes about 2 min instead of more than 30.
+- [x] Text: README, summary, exp01, exp02, methodology, paper ("strongest" wording, A5 attribution, "Successes" → "Coarse agreements", B1-conditioned unambiguous table, cluster bootstrap, limitations, README to-do).
+- [x] Text that depends on the B1-fixed result: interpretation in exp01, the paper's results, abstract and conclusion, the README and the summary.
 - [ ] Regenerate the report, site and paper PDF. Publish the Hugging Face card. PR and merge.
 
 ## Open to-do after stage 2a
 - Re-run the real-data B1 column with B1-fixed (currently the preregistered B1).
 - Recompute the ambiguity tag with B1-fixed fits, or with a ground-truth-based definition.
+- A B1-fixed variant with k < N cluster candidates. With k ≤ N, G-AIC picks degenerate one-point-per-cluster fits on the smallest clouds. This would be another post-hoc choice, so if run it must be reported next to the pre-specified B1-fixed.
 - Stages 3–6 above.

@@ -76,11 +76,14 @@ Exploratory, not preregistered: R4b (Pythia-410m counting, layer 6), R5c ("It's 
 <!-- BEGIN:hypotheses_table -->
 | Hypothesis | Comparison | Estimate [95% CI] | p (Holm) | n | Verdict |
 |---|---|---|---|---|---|
-| H1 | macro-F1(method) - macro-F1(B1) | 0.3741 [0.3572, 0.3905] | < 1e-16 | 3120 | supported |
-| H2 | median Chamfer(method) - median Chamfer(B1) | -0.0554 [-0.0645, -0.0462] | < 1e-16 | 3120 | supported |
-| H5b_refinement | median Chamfer(method) - median Chamfer(no refinement) | -0.0033 [-0.0046, -0.0021] | < 1e-16 | 39000 | supported |
-| H3 | Coarse-label agreement (subsample majority) with literature on preregistered real datasets | 7/12 = 58% [28, 85] (exact binomial) | perm. p = 0.125 | 12 | not supported |
-| H4 | Controls: matched Gaussians -> blob (mean over 17 real datasets); ordinal processes -> ringing (not helix) | blob rate 86%; ringing 60% vs helix 40% | - | - | supported |
+| H1 | macro-F1(method) - macro-F1(B1) | 0.3741 [0.3410, 0.4095] | < 1e-16 | 3120 | supported |
+| H2 | median Chamfer(method) - median Chamfer(B1) | -0.0554 [-0.0766, -0.0412] | < 1e-16 | 3120 | supported |
+| H5b_refinement | median Chamfer(method) - median Chamfer(no refinement) | -0.0033 [-0.0055, -0.0011] | < 1e-16 | 39000 | supported |
+| H1, post hoc | macro-F1(method) - macro-F1(B1), clouds whose true family is not blob | 0.3191 [0.2848, 0.3560] | - | 2880 | method better |
+| H1, post hoc | macro-F1(method) - macro-F1(B1-fixed) | 0.3381 [0.3062, 0.3746] | - | 3120 | method better |
+| H2, post hoc | median Chamfer(method) - median Chamfer(B1-fixed) | -0.0608 [-0.0846, -0.0454] | < 1e-16 (unadjusted) | 3120 | method better |
+| H3 | Coarse-label agreement (subsample majority) with literature on preregistered real datasets | 7/12 = 58% [28, 85] (exact binomial); post hoc: constant 'curve' 8/12, exact family 1/12 | perm. p = 0.125 | 12 | not supported |
+| H4 | Controls: matched Gaussians -> blob (mean over 17 real datasets); ordinal processes -> ringing (not helix) | blob rate 86%; ringing 60% vs helix 40% | - | - | supported (mean criterion); 10/12 preregistered datasets reach 80% |
 <!-- END:hypotheses_table -->
 
 ![real](../docs/figures/fig_real.png)
@@ -94,6 +97,7 @@ These notes interpret the tables above. Every number they rely on is in a genera
    - On synthetic data the method beats every baseline (exp01). On real activations its coarse label (point set / curve / surface / blob; majority over subsamples) matches the literature on a little over half of the preregistered datasets.
    - That is not above the label-permutation null, so **H3 is not supported**.
    - H3 is not falsified either: agreement is not below 50%. This is a negative result for the fitter as a drop-in replacement for by-eye shape calls.
+   - Two post-hoc reference points, added by the 2026-11-14 audit, make the result weaker still (H3 line of the summary headline). Most expected labels are "curve", so always answering "curve" agrees at least as often as the method. At the level of the exact family, the method agrees with the literature on very few datasets: the 6-feature toy model by subsample majority, plus the 8-feature one by full-cloud label.
    - The coarse misses are GPT-2 positions (R1), the 8-feature toy model (R3, n = 8), years (R6), age (R8b) and true/false statements (R9). Points 2, 4, 7, 8 and 10 discuss them.
 2. **Out-of-vocabulary curves get a wrong family, and refinement cannot fix that.**
    - GPT-2's positional embeddings (R1) form a 1D spiral whose radius changes along the curve, as the points in [fig_real](../docs/figures/fig_real.png) show.
