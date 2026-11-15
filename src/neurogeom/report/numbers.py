@@ -49,7 +49,24 @@ def systems_table(s: dict, order: list[str]) -> str:
     return "\n".join(rows)
 
 
-def hypotheses_table(h: dict, real: dict | None) -> str:
+def _h4_verdict(h4: dict) -> str:
+    """H4 verdict under the implemented criterion (mean blob rate), plus the per-dataset reading of the preregistered
+    "blob in >= 80%" over preregistered datasets (audit 2026-11-14)."""
+    v = "supported" if h4["supported"] else "not supported"
+    if "C2_prereg_n_posthoc" in h4:
+        v += f" (mean criterion); {h4['C2_prereg_at_least_80_posthoc']}/{h4['C2_prereg_n_posthoc']} preregistered datasets reach 80%"
+    return v
+
+
+def _diff_row(name: str, comparison: str, d: tuple, n: int, p: float | None = None, lower_better: bool = False) -> str:
+    """One post-hoc comparison row; the verdict names the system the 95% CI favours (or 'CI includes 0')."""
+    p_txt = "-" if p is None else f"{fmt_p(p)} (unadjusted)"
+    method_wins, other_wins = (d[2] < 0, d[1] > 0) if lower_better else (d[1] > 0, d[2] < 0)
+    verdict = "method better" if method_wins else ("comparator better" if other_wins else "CI includes 0")
+    return f"| {name} | {comparison} | {d[0]:.4f} [{d[1]:.4f}, {d[2]:.4f}] | {p_txt} | {n} | {verdict} |"
+
+
+def hypotheses_table(h: dict, real: dict | None, posthoc: dict | None = None) -> str:
     rows = ["| Hypothesis | Comparison | Estimate [95% CI] | p (Holm) | n | Verdict |", "|---|---|---|---|---|---|"]
     for k in ("H1", "H2", "H5a_chamfer_loss", "H5b_refinement"):
         if k in h:
@@ -57,15 +74,26 @@ def hypotheses_table(h: dict, real: dict | None) -> str:
             verdict = "supported" if v["supported"] else ("falsified" if v.get("falsified") or (not v["supported"] and k != "H2") else "not supported")
             rows.append(f"| {k} | {v['comparison']} | {v['estimate']:.4f} [{v['ci'][0]:.4f}, {v['ci'][1]:.4f}] | "
                         f"{fmt_p(v.get('p_holm', v.get('p', float('nan'))))} | {v['n']} | {verdict} |")
+    # post hoc (audit 2026-11-14; outside the Holm family): H1/H2 on non-blob clouds and against the repaired baseline B1-fixed
+    nb = (posthoc or {}).get("nonblob", {}).get("method_vs_B1")
+    if nb:
+        rows.append(_diff_row("H1, post hoc", "macro-F1(method) - macro-F1(B1), clouds whose true family is not blob", nb["macro_f1_diff"], nb["n"]))
+    fx = (posthoc or {}).get("method_vs_B1_fixed")
+    if fx:
+        rows.append(_diff_row("H1, post hoc", "macro-F1(method) - macro-F1(B1-fixed)", fx["macro_f1_diff"], fx["n"]))
+        rows.append(_diff_row("H2, post hoc", "median Chamfer(method) - median Chamfer(B1-fixed)", fx["median_chamfer_diff"], fx["n"],
+                              fx["wilcoxon_p_chamfer"], lower_better=True))
     if real:
         h3, h4 = real["H3"], real["H4"]
         ci = h3["ci"] or [float("nan")] * 2
+        ref = (f"; post hoc: constant 'curve' {h3['constant_majority_agree_posthoc']}/{h3['n']}, exact family "
+               f"{h3['fine_agree_subsample_posthoc']}/{h3['n']}" if "constant_majority_agree_posthoc" in h3 else "")
         rows.append(f"| H3 | Coarse-label agreement (subsample majority) with literature on preregistered real datasets | {h3['agree']}/{h3['n']} = {100 * h3['rate']:.0f}% "
-                    f"[{100 * ci[0]:.0f}, {100 * ci[1]:.0f}] (exact binomial) | perm. p = {h3['p_permutation']:.3g} | {h3['n']} | "
+                    f"[{100 * ci[0]:.0f}, {100 * ci[1]:.0f}] (exact binomial){ref} | perm. p = {h3['p_permutation']:.3g} | {h3['n']} | "
                     f"{'supported' if h3['supported'] else 'not supported'} |")
         rows.append(f"| H4 | Controls: matched Gaussians -> blob (mean over {_n_real(h4)} real datasets); ordinal processes -> ringing (not helix) | blob rate "
                     f"{_pct(h4['C2_blob_rate_mean'])}; ringing {_pct(h4['C1_ringing_rate'])} vs helix {_pct(h4['C1_helix_rate'])} | - | - | "
-                    f"{'supported' if h4['supported'] else 'not supported'} |")
+                    f"{_h4_verdict(h4)} |")
     return "\n".join(rows)
 
 
@@ -169,7 +197,8 @@ def headline(a: dict) -> str:
                    f"of clouds; median Chamfer distance to the ground-truth shape {s['method']['median_chamfer'][0]:.3f} (RMS-radius units).")
     if all(k in s for k in ("method_subset", "B1_classical", "B2_features")):
         out.append(f"- **Same {s['B1_classical']['n']:,} clouds for every system:** method {acc('method_subset')}, B2 features + boosting "
-                   f"{acc('B2_features')}, B1 classical fit + geometric AIC {acc('B1_classical')}, trivial baselines "
+                   f"{acc('B2_features')}, B1 classical fit + geometric AIC {acc('B1_classical')}, "
+                   + (f"B1-fixed (post hoc) {acc('B1_fixed')}, " if "B1_fixed" in s else "") + "trivial baselines "
                    f"{100 * min(s[k]['fine_acc'][0] for k in ('B3a_null', 'B3b_circle', 'B3c_random') if k in s):.1f}-"
                    f"{100 * max(s[k]['fine_acc'][0] for k in ('B3a_null', 'B3b_circle', 'B3c_random') if k in s):.1f}%.")
     for k, txt in (("H1", "macro-F1 method - B1"), ("H2", "median Chamfer method - B1"), ("H5b_refinement", "median Chamfer method - no refinement")):
@@ -177,8 +206,28 @@ def headline(a: dict) -> str:
             p = fmt_p(h[k].get("p_holm", float("nan")))
             out.append(f"- **{k}** ({txt}): {h[k]['estimate']:.4f} [{h[k]['ci'][0]:.4f}, {h[k]['ci'][1]:.4f}], "
                        f"Holm p {p if p.startswith('<') else '= ' + p}: {'supported' if h[k]['supported'] else 'not supported'}.")
+    ph = a.get("posthoc", {})
+    nb = ph.get("nonblob", {})
     if "A5_gaic" in s:
-        out.append(f"- **Selection rule:** choosing the family by geometric AIC instead of the classifier drops accuracy to {acc('A5_gaic')}.")
+        nb_txt = (f" On clouds whose true family is not blob, A5 reaches {100 * nb['accuracy']['A5_gaic']:.1f}% vs the method's "
+                  f"{100 * nb['accuracy']['method']:.1f}%." if "A5_gaic" in nb.get("accuracy", {}) else "")
+        out.append(f"- **Selection rule:** choosing the family by geometric AIC instead of the classifier drops accuracy to {acc('A5_gaic')}.{nb_txt}")
+    if "blob_recall" in ph and "B1_classical" in ph["blob_recall"]:
+        m = nb.get("method_vs_B1")
+        f1_txt = (f" On the clouds whose true family is not blob, macro-F1 is {nb['macro_f1']['method_subset']:.3f} (method) vs "
+                  f"{nb['macro_f1']['B1_classical']:.3f} (B1), difference {m['macro_f1_diff'][0]:.3f} [{m['macro_f1_diff'][1]:.3f}, "
+                  f"{m['macro_f1_diff'][2]:.3f}]." if m else "")
+        out.append(f"- **Geometric AIC cannot select the blob (post hoc, audit 2026-11-14):** B1 and the A5 G-AIC rule output blob for "
+                   f"{100 * ph['blob_recall']['B1_classical']:.0f}% and {100 * ph['blob_recall'].get('A5_gaic', float('nan')):.0f}% of blob clouds "
+                   f"(the method: {100 * ph['blob_recall']['method']:.0f}%), a structural property of the noise estimate "
+                   f"(proof in reports/deviations.md).{f1_txt}")
+    fx = ph.get("method_vs_B1_fixed")
+    if fx and "B1_fixed" in s:
+        t = ph.get("b1_fixed_tau", {})
+        out.append(f"- **B1-fixed (post hoc; B1 with per-cloud cluster counts, exact residuals and a blob threshold"
+                   + (f" tau = {t['tau']:.3f} fitted on {t['n_val']} validation clouds" if t else "") + f"):** accuracy {acc('B1_fixed')}; "
+                   f"method - B1-fixed macro-F1 {fx['macro_f1_diff'][0]:.3f} [{fx['macro_f1_diff'][1]:.3f}, {fx['macro_f1_diff'][2]:.3f}], "
+                   f"median Chamfer {fx['median_chamfer_diff'][0]:.4f} [{fx['median_chamfer_diff'][1]:.4f}, {fx['median_chamfer_diff'][2]:.4f}].")
     c = a.get("calibration")
     if c:
         out.append(f"- **Calibration:** temperature T = {c['temperature']:.3f} (fitted on the validation stream) lowers ECE from {c['before']['ece']:.3f} "
@@ -189,6 +238,10 @@ def headline(a: dict) -> str:
         h3, h4 = r["H3"], r["H4"]
         full = (f" Post hoc, with the full-cloud label instead of the subsample majority: {h3['agree_full_cloud_posthoc']}/{h3['n']}."
                 if "agree_full_cloud_posthoc" in h3 else "")
+        if "constant_majority_agree_posthoc" in h3:
+            full += (f" For reference (post hoc): always answering the most frequent expected class, curve, agrees on "
+                     f"{h3['constant_majority_agree_posthoc']}/{h3['n']}; the exact family agrees on {h3['fine_agree_subsample_posthoc']}/{h3['n']} "
+                     f"(full cloud: {h3['fine_agree_full_cloud_posthoc']}/{h3['n']}).")
         out.append(f"- **H3, real activations:** the coarse shape class (point set / curve / surface / blob; majority label over random 80% "
                    f"subsamples) agrees with the literature on {h3['agree']}/{h3['n']} preregistered datasets (exact 95% CI "
                    f"{100 * h3['ci'][0]:.0f}-{100 * h3['ci'][1]:.0f}%), label-permutation p = {h3['p_permutation']:.3g}: "
@@ -197,7 +250,7 @@ def headline(a: dict) -> str:
         gp = f" Post hoc: smooth Gaussian processes alone are labelled helix in {_pct(bp['gp']['helix'])}, random walks in {_pct(bp['walk']['helix'])}." if "gp" in bp and "walk" in bp else ""
         out.append(f"- **H4, controls:** matched-covariance Gaussians are labelled blob {_pct(h4['C2_blob_rate_mean'])} of the time (mean over all "
                    f"{_n_real(h4)} real datasets, exploratory ones included); ordinal-process controls ringing {_pct(h4['C1_ringing_rate'])} vs "
-                   f"helix {_pct(h4['C1_helix_rate'])}: {'supported' if h4['supported'] else 'not supported'}.{gp}")
+                   f"helix {_pct(h4['C1_helix_rate'])}: {_h4_verdict(h4)}.{gp}")
         acc_ids, rej_ids = _helix_rule_ids(r, True), _helix_rule_ids(r, False)
         wrong = [i for i in acc_ids if i in r.get("helix_rule_non_helix_expected", [])]
         if acc_ids or rej_ids:
@@ -206,6 +259,8 @@ def headline(a: dict) -> str:
                        f"{', '.join(f'`{i}`' for i in acc_ids) or 'none'}"
                        + ((", all of which" if wrong == acc_ids else f"; of these, {', '.join(f'`{i}`' for i in wrong)}")
                           + " are expected to be non-helix shapes, so the rule is necessary, not sufficient." if wrong else "."))
+    if a.get("ci_method"):
+        out.append(f"- **Error bars:** 95% {a['ci_method']}, because clouds generated together share N and the R^D-embedding draw.")
     return "\n".join(out)
 
 
@@ -259,7 +314,8 @@ def tex_macros(analysis: dict) -> str:
     def mac(name, val):
         lines.append(f"\\newcommand{{\\{name}}}{{{val}}}")
     s = analysis["systems"]
-    for key, tag in (("method", "Method"), ("method_subset", "Methodsub"), ("B1_classical", "Bone"), ("B2_features", "Btwo"), ("A3_norefine", "Athree"),
+    for key, tag in (("method", "Method"), ("method_subset", "Methodsub"), ("B1_classical", "Bone"), ("B1_fixed", "Bonefixed"),
+                     ("B2_features", "Btwo"), ("A3_norefine", "Athree"),
                      ("A5_gaic", "Afivegaic"), ("B3a_null", "Bthreea"), ("B3b_circle", "Bthreeb"), ("B3c_random", "Bthreec"),
                      ("A1_paramloss", "Aone"), ("A2_noresidual", "Atwo"), ("A4_deepsets", "Afour"), ("A6_noembed", "Asix")):
         if key in s:
@@ -305,6 +361,43 @@ def tex_macros(analysis: dict) -> str:
         mac("nllAfter", f"{cal['after']['nll']:.3f}")
     if "ambiguous_fraction" in analysis:
         mac("ambiguousFrac", f"{100 * analysis['ambiguous_fraction']:.1f}\\%")
+    # post-hoc checks of the 2026-11-14 audit
+    ph = analysis.get("posthoc", {})
+    pct = lambda x: f"{100 * x:.0f}\\%"
+    ci3 = lambda d: (f"{d[0]:.3f}", f"[{d[1]:.3f}, {d[2]:.3f}]")
+    for key, tag in (("B1_classical", "Bone"), ("A5_gaic", "Afivegaic"), ("method", "Method"), ("B1_fixed", "Bonefixed")):
+        if key in ph.get("blob_recall", {}):
+            mac(f"blobRecall{tag}", pct(ph["blob_recall"][key]))
+    nb = ph.get("nonblob", {})
+    for key, tag in (("method", "Method"), ("method_subset", "Methodsub"), ("A5_gaic", "Afivegaic"), ("B1_classical", "Bone")):
+        if key in nb.get("accuracy", {}):
+            mac(f"nonblobAcc{tag}", f"{100 * nb['accuracy'][key]:.1f}\\%")
+            mac(f"nonblobFone{tag}", f"{nb['macro_f1'][key]:.3f}")
+    if nb.get("method_vs_B1"):
+        (e, c) = ci3(nb["method_vs_B1"]["macro_f1_diff"])
+        mac("estHoneNonblob", e)
+        mac("ciHoneNonblob", c)
+    fx = ph.get("method_vs_B1_fixed")
+    if fx:
+        for name, d in (("HoneBonefixed", fx["macro_f1_diff"]), ("HtwoBonefixed", fx["median_chamfer_diff"])):
+            e, c = ci3(d)
+            mac(f"est{name}", e)
+            mac(f"ci{name}", c)
+    if "b1_fixed_tau" in ph:
+        mac("bonefixedTau", f"{ph['b1_fixed_tau']['tau']:.3f}")
+        mac("bonefixedNval", str(ph["b1_fixed_tau"]["n_val"]))
+    if "real" in analysis:
+        h3, h4 = analysis["real"]["H3"], analysis["real"]["H4"]
+        if "constant_majority_agree_posthoc" in h3:
+            mac("hthreeConst", str(h3["constant_majority_agree_posthoc"]))
+            mac("hthreeFine", str(h3["fine_agree_subsample_posthoc"]))
+            mac("hthreeFineFull", str(h3["fine_agree_full_cloud_posthoc"]))
+        if "C2_prereg_n_posthoc" in h4:
+            mac("hfourBlobPrereg", pct(h4["C2_blob_rate_mean_prereg_posthoc"]))
+            mac("hfourPreregOk", str(h4["C2_prereg_at_least_80_posthoc"]))
+            mac("hfourPreregN", str(h4["C2_prereg_n_posthoc"]))
+    if analysis.get("ci_method"):
+        mac("ciMethod", analysis["ci_method"])
     return "\n".join(lines) + "\n"
 
 
@@ -321,7 +414,8 @@ def build_all(cfg: dict, ablation_runs: dict | None = None) -> dict:
     GEN_TEX.mkdir(parents=True, exist_ok=True)
     order = [k for k in figures.SYSTEM_ORDER if k in analysis["systems"]]
     tables = {"results_table": systems_table(analysis["systems"], order),
-              "hypotheses_table": hypotheses_table(analysis["hypotheses"], analysis.get("real")), "headline": headline(analysis)}
+              "hypotheses_table": hypotheses_table(analysis["hypotheses"], analysis.get("real"), analysis.get("posthoc")),
+              "headline": headline(analysis)}
     rr = res / "real" / "real_results.json"
     if rr.exists():
         results = json.load(open(rr))

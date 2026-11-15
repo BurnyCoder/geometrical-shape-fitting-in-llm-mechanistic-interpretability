@@ -24,10 +24,11 @@ log = get_logger(__name__)
 PALETTE = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"]
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#e4e3df"
 SYSTEM_ORDER = ["method", "method_subset", "A3_norefine", "A5_gaic", "A5_hybrid", "A0_reference", "A1_paramloss", "A2_noresidual", "A4_deepsets", "A6_noembed",
-                "B1_classical", "B2_features", "B3a_null", "B3b_circle", "B3c_random"]
+                "B1_classical", "B1_fixed", "B2_features", "B3a_null", "B3b_circle", "B3c_random"]
 SYSTEM_LABEL = {"method": "Method (network + refinement)", "method_subset": "Method, baseline subset", "A3_norefine": "A3: no refinement", "A5_gaic": "A5: G-AIC selection",
                 "A5_hybrid": "A5: hybrid selection", "A0_reference": "A0: method, ablation budget", "A1_paramloss": "A1: parameter-space loss", "A2_noresidual": "A2: no residual term",
                 "A4_deepsets": "A4: DeepSets encoder", "A6_noembed": "A6: no R^D augmentation", "B1_classical": "B1: classical fit + G-AIC",
+                "B1_fixed": "B1-fixed: repaired classical fit (post hoc)",
                 "B2_features": "B2: features + boosting", "B3a_null": "B3a: always blob", "B3b_circle": "B3b: always arc (B1 arc fit)",
                 "B3c_random": "B3c: random shape"}
 
@@ -47,6 +48,8 @@ def _color(system: str) -> str:
         return PALETTE[0]
     if system.startswith("A"):
         return PALETTE[6]
+    if system == "B1_fixed":
+        return PALETTE[3]
     if system.startswith("B1"):
         return PALETTE[1]
     if system.startswith("B2"):
@@ -75,7 +78,7 @@ def fig_systems(analysis: dict, key: str = "systems", name: str = "fig_systems.p
     axes[1].set_xlim(left=0)
     axes[0].set_yticks(range(len(order)))
     axes[0].set_yticklabels([f"{SYSTEM_LABEL.get(k, k)} (n={s[k]['n']})" for k in order[::-1]], color=INK, fontsize=9)
-    fig.text(0.01, 0.005, "Dots: estimate; bars: 95% bootstrap CI. Baselines use the baseline subset of the test set.", fontsize=8, color=INK2)
+    fig.text(0.01, 0.005, "Dots: estimate; bars: 95% cluster-bootstrap CI. Baselines use the baseline subset of the test set.", fontsize=8, color=INK2)
     fig.tight_layout()
     p = fig_dir() / name
     fig.savefig(p, dpi=160)
@@ -87,13 +90,19 @@ def fig_by_bin(analysis: dict, key: str, xlabels: list[str], title: str, name: s
     data = analysis[key]
     # paired: every line uses the same baseline-subset clouds. A3 (no refinement) is left out: refinement never changes the
     # selected family, so its accuracy equals the method's by construction and its line would hide the method's.
-    systems = [k for k in ("method_subset", "B1_classical", "B2_features") if k in data]
+    systems = [k for k in ("method_subset", "B1_classical", "B1_fixed", "B2_features") if k in data]
     fig, ax = plt.subplots(figsize=(6.5, 3.6))
-    for k in systems:
+    for j, k in enumerate(systems):
+        cell = lambda b: data[k][str(b)] if str(b) in data[k] else data[k][b]          # JSON keys are strings, fresh dicts ints
         xs = sorted(int(b) for b in data[k])
-        ys = [data[k][str(b)]["fine_acc"] if str(b) in data[k] else data[k][b]["fine_acc"] for b in xs]
-        ax.plot(xs, ys, "-o", color=_color("method" if k == "method_subset" else k), linewidth=2, markersize=7,
-                markeredgecolor="white", label=SYSTEM_LABEL[k])
+        ys = [cell(b)["fine_acc"] for b in xs]
+        xo = [x + 0.06 * (j - (len(systems) - 1) / 2) for x in xs]                     # small dodge so error bars do not overlap
+        c = _color("method" if k == "method_subset" else k)
+        if all("fine_acc_ci" in cell(b) for b in xs):                                   # cluster-bootstrap 95% CI per bin
+            lo, hi = zip(*(cell(b)["fine_acc_ci"] for b in xs))
+            ax.errorbar(xo, ys, yerr=[[y - l for y, l in zip(ys, lo)], [h - y for y, h in zip(ys, hi)]], fmt="none", ecolor=c,
+                        elinewidth=1.5, capsize=3)
+        ax.plot(xo, ys, "-o", color=c, linewidth=2, markersize=7, markeredgecolor="white", label=SYSTEM_LABEL[k])
     ax.set_xticks(range(len(xlabels)))
     ax.set_xticklabels(xlabels)
     ax.set_ylim(0, 1)
@@ -102,7 +111,9 @@ def fig_by_bin(analysis: dict, key: str, xlabels: list[str], title: str, name: s
     ax.legend(frameon=False, fontsize=8)
     _style(ax)
     ax.grid(axis="y", color=GRID)
-    fig.tight_layout()
+    fig.text(0.01, 0.005, "Bars: 95% cluster-bootstrap CI (resampling generator chunks). Same baseline-subset clouds for every line.",
+             fontsize=7, color=INK2)
+    fig.tight_layout(rect=(0, 0.04, 1, 1))
     p = fig_dir() / name
     fig.savefig(p, dpi=160)
     plt.close(fig)
