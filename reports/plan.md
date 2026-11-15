@@ -8,7 +8,7 @@ This file tracks the project plan and its status. Results live in [summary.md](s
 |---|---|---|
 | 1 | Literature catalog, preregistration, core code, README | done (2026-10-31) |
 | 2 | First model `main_s0`, with the controls and baselines that need no training; paper, reports, site, Hugging Face | done (2026-10-31); fact-checks 2026-11-01 and 2026-11-04 |
-| 2a | Independent soundness audit of stage 2 and its fixes (below) | **in progress** (2026-11-14) |
+| 2a | Independent soundness audit of stage 2 and its fixes (below) | done (2026-11-15; PR #10) |
 | 3 | Trained ablations A0, A1, A2, A4, A6 (`bash scripts/sweep.sh ablations`), including H5a | postponed by the author |
 | 4 | Seeds 1–2 and hyperparameter sensitivity (`bash scripts/sweep.sh sensitivity`); hierarchical bootstrap over seeds | postponed by the author |
 | 5 | OOD synthetic set (4D flat torus, two-frequency Fourier circles, multi-period number helix) | postponed |
@@ -36,7 +36,7 @@ This file tracks the project plan and its status. Results live in [summary.md](s
 - [x] Generators: headline lines, H4 verdict text, post-hoc rows, LaTeX macros, error bars on the by-N and by-noise figures. Macro-F1 is now a bincount implementation identical to sklearn, and the analysis takes about 2 min instead of more than 30.
 - [x] Text: README, summary, exp01, exp02, methodology, paper ("strongest" wording, A5 attribution, "Successes" → "Coarse agreements", B1-conditioned unambiguous table, cluster bootstrap, limitations, README to-do).
 - [x] Text that depends on the B1-fixed result: interpretation in exp01, the paper's results, abstract and conclusion, the README and the summary.
-- [ ] Regenerate the report, site and paper PDF. Publish the Hugging Face card. PR and merge.
+- [x] Regenerate the report, site and paper PDF. Publish the Hugging Face card. PR and merge (PR #10, 2026-11-15).
 
 ## Open to-do after stage 2a
 - Re-run the real-data B1 column with B1-fixed (currently the preregistered B1).
