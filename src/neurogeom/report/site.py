@@ -9,7 +9,6 @@ probabilities, the canonical parameters, the preregistered expectation and wheth
 from __future__ import annotations
 
 import json
-import shutil
 from pathlib import Path
 
 from neurogeom.config import REPO_ROOT
@@ -116,9 +115,9 @@ fetch('data/manifest.json').then(r => r.json()).then(m => {
 def build_site(cfg: dict, synth_gallery: Path | None = None) -> Path:
     res = Path(cfg["paths"]["results"])
     data = DOCS / "data"
-    if data.exists():
-        shutil.rmtree(data)
-    data.mkdir(parents=True)
+    data.mkdir(parents=True, exist_ok=True)
+    for old in data.glob("*.json"):   # clear stale files; removing the directory itself fails on Windows while another
+        old.unlink()                  # process (indexer, preview) holds a handle on it (WinError 5 on 2026-11-15)
     manifest = {"Real activations": [], "Controls": [], "Synthetic test examples": []}
     rr = res / "real" / "real_results.json"
     for r in json.load(open(rr)) if rr.exists() else []:

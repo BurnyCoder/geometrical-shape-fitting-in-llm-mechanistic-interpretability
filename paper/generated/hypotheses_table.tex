@@ -1,12 +1,15 @@
 \scriptsize
-\begin{tabular}{llllll}
+\begin{tabular}{l >{\raggedright\arraybackslash}p{4.3cm} >{\raggedright\arraybackslash}p{3.6cm} >{\raggedright\arraybackslash}p{1.6cm} l >{\raggedright\arraybackslash}p{2.5cm}}
 \toprule
 \textbf{Hypothesis} & \textbf{Comparison} & \textbf{Estimate [95\% CI]} & \textbf{p (Holm)} & \textbf{n} & \textbf{Verdict} \\
 \midrule
-H1 & macro-F1(method) - macro-F1(B1) & 0.3741 [0.3572, 0.3905] & $<$ 1e-16 & 3120 & supported \\
-H2 & median Chamfer(method) - median Chamfer(B1) & -0.0554 [-0.0645, -0.0462] & $<$ 1e-16 & 3120 & supported \\
-H5b\_refinement & median Chamfer(method) - median Chamfer(no refinement) & -0.0033 [-0.0046, -0.0021] & $<$ 1e-16 & 39000 & supported \\
-H3 & Coarse-label agreement (subsample majority) with literature on preregistered real datasets & 7/12 = 58\% [28, 85] (exact binomial) & perm. p = 0.125 & 12 & not supported \\
-H4 & Controls: matched Gaussians $\to$ blob (mean over 17 real datasets); ordinal processes $\to$ ringing (not helix) & blob rate 86\%; ringing 60\% vs helix 40\% & - & - & supported \\
+H1 & macro-F1(method) - macro-F1(B1) & 0.3741 [0.3410, 0.4095] & $<$ 1e-16 & 3120 & supported \\
+H2 & median Chamfer(method) - median Chamfer(B1) & -0.0554 [-0.0766, -0.0412] & $<$ 1e-16 & 3120 & supported \\
+H5b\_refinement & median Chamfer(method) - median Chamfer(no refinement) & -0.0033 [-0.0055, -0.0011] & $<$ 1e-16 & 39000 & supported \\
+H1, post hoc & macro-F1(method) - macro-F1(B1), clouds whose true family is not blob & 0.3191 [0.2848, 0.3560] & - & 2880 & method better \\
+H1, post hoc & macro-F1(method) - macro-F1(B1-fixed) & 0.3381 [0.3062, 0.3746] & - & 3120 & method better \\
+H2, post hoc & median Chamfer(method) - median Chamfer(B1-fixed) & -0.0608 [-0.0846, -0.0454] & $<$ 1e-16 (unadjusted) & 3120 & method better \\
+H3 & Coarse-label agreement (subsample majority) with literature on preregistered real datasets & 7/12 = 58\% [28, 85] (exact binomial); post hoc: constant 'curve' 8/12, exact family 1/12 & perm. p = 0.125 & 12 & not supported \\
+H4 & Controls: matched Gaussians $\to$ blob (mean over 17 real datasets); ordinal processes $\to$ ringing (not helix) & blob rate 86\%; ringing 60\% vs helix 40\% & - & - & supported (mean criterion); 10/12 preregistered datasets reach 80\% \\
 \bottomrule
 \end{tabular}

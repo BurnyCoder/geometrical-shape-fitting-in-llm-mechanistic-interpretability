@@ -170,6 +170,66 @@ def _random_raw(fi: int, p: dict) -> torch.Tensor:
     return f.encode(p)[0]
 
 
+# ---------------------------------------------------------------- B1-fixed (post hoc, audit 2026-11-14)
+# The preregistered B1 has three handicaps (reports/deviations.md): G-AIC can never select the blob, cluster counts are
+# skipped batch-wide, and J uses the nearest dense sample. B1-fixed repairs all three (baselines/classical.py) with the
+# same starts and steps, decides the blob by thresholding the noise level implied by the best surface fit (eps_hat > tau),
+# and fits tau on the `val` stream only. The preregistered B1 stays the primary comparator for H1/H2.
+def _b1_fixed_rows(cfg, cell, ii, b, gen, tau: float | None) -> list:
+    ec = cfg["eval"]
+    cands, sel = classical.fit_classical(b["x"], b["mask"], ec["classical_steps"], cfg["infer"]["refine_back_weight"], gen,
+                                         restarts=ec["classical_restarts"], per_cloud_k=True, exact_j=True, blob_tau=tau)
+    ci = sel["cand_index"].tolist()
+    fam, raws = [cands[c]["fi"] for c in ci], [cands[c]["raw"][i] for i, c in enumerate(ci)]
+    return [{"system": "B1_fixed", **m, **r, "prob_pred": np.nan, "eps_hat": float(e)}
+            for m, r, e in zip(sample_meta(cell, ii, b), shape_metrics(fam, raws, b), sel["eps"].tolist())]
+
+
+def run_b1_fixed(cfg: dict, stream: str, tau: float | None) -> pd.DataFrame:
+    """B1-fixed on the val tuning subset (stream='val', tau=None: records eps_hat; G-AIC alone never picks blob) or on the
+    baseline subset of the test set (stream='test', the tuned tau). Resumable: one CSV per finished cell."""
+    device = torch.device(cfg["device"] if torch.cuda.is_available() else "cpu")
+    ec = cfg["eval"]
+    if stream == "val":
+        cells, per = build_test_set(cfg, stream="val", per_cell=ec["val_per_cell"], device=device), ec["b1_fixed_val_per_cell"]
+    else:
+        cells, per = build_test_set(cfg, device=device), ec["baseline_per_cell"]
+    part_dir = Path(cfg["paths"]["results"]) / "synth" / f"b1_fixed_{stream}"
+    part_dir.mkdir(parents=True, exist_ok=True)
+    gen = make_generator(stream_seed(cfg["seed"], stream, salt="b1_fixed"), device)
+    t0, frames = time.time(), []
+    for cell in cells:
+        path = part_dir / f"cell_{cell['n_bin']}_{cell['noise_bin']}.csv"
+        if path.exists():                                                   # finished before an interruption
+            frames.append(pd.read_csv(path))
+            log.info("B1-fixed %s: cell N-bin %d noise-bin %d already done, skipped", stream, cell["n_bin"], cell["noise_bin"])
+            continue
+        rows = []
+        for _, ii, b in iterate([cell], 256, device, subset_per_cell=per):
+            bs = 256 if cell["x"].shape[1] <= 256 else 64                   # same batching as the preregistered B1
+            for s0 in range(0, len(ii), bs):
+                sl = slice(s0, s0 + bs)
+                rows += _b1_fixed_rows(cfg, cell, ii[sl], {k: (v[sl] if torch.is_tensor(v) else v) for k, v in b.items()}, gen, tau)
+        df = pd.DataFrame(rows)
+        df.to_csv(path, index=False)
+        frames.append(df)
+        log.info("B1-fixed %s: cell N-bin %d noise-bin %d, %d clouds, accuracy %.3f, blob predicted %d (%.1f min)", stream,
+                 cell["n_bin"], cell["noise_bin"], len(df), df.correct.mean(), int((df.family_pred == "blob").sum()), (time.time() - t0) / 60)
+    return pd.concat(frames, ignore_index=True)
+
+
+def tune_blob_tau(df: pd.DataFrame, n_grid: int = 200) -> dict:
+    """tau = the eps_hat quantile (200-point grid, including the maximum = never blob) that maximises val macro-F1 when
+    clouds with eps_hat > tau are called blob and the rest keep their G-AIC family; ties go to the smallest tau."""
+    from neurogeom.eval.stats import macro_f1
+    eps, y, base = df.eps_hat.values, df.family_true.values, df.family_pred.values
+    grid = np.unique(np.quantile(eps, np.linspace(0, 1, n_grid)))           # ascending, so argmax takes the smallest tau
+    scores = [macro_f1(y, np.where(eps > t, "blob", base)) for t in grid]
+    i = int(np.argmax(scores))
+    return {"tau": float(grid[i]), "val_macro_f1": float(scores[i]), "val_macro_f1_never_blob": float(scores[-1]),
+            "n_val": int(len(df)), "grid": [float(g) for g in grid], "grid_macro_f1": [float(s) for s in scores]}
+
+
 def run_synth_eval(cfg: dict, baselines: bool | None = None) -> dict:
     from neurogeom.train.loop import final_checkpoint, load_model
     device = torch.device(cfg["device"] if torch.cuda.is_available() else "cpu")

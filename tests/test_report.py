@@ -66,3 +66,25 @@ def test_calibration_reports_test_optimal_temperature(tmp_path):
     np.savez(tmp_path / "synth" / "probs.npz", probs=q / q.sum(1, keepdims=True), labels=y)
     json.dump({"temperature": t}, open(tmp_path / "synth" / "meta.json", "w"))
     assert abs(calibration(tmp_path)["t_test_optimal"] - 1.0) < 0.1
+
+
+def test_h3_reports_constant_baseline_and_fine_agreement_post_hoc():
+    # audit 2026-11-14: a constant predictor of the most frequent expected coarse label is the trivial H3 baseline,
+    # and fine-family agreement is reported next to the preregistered coarse count
+    res = [_res("R1_a", "helix", "1d", "1d", "1d"), _res("R2_b", "ringing", "1d", "1d", "1d"), _res("R3_c", "sphere", "2d", "2d", "0d")]
+    res[0]["meta"]["expected_fine"] = ["helix"]                              # fine match by full cloud and subsample majority
+    res[1]["meta"]["expected_fine"], res[1]["stability"]["fine_majority"] = ["helix"], "helix"   # fine match by majority only
+    h3 = hypotheses_real(res)["H3"]
+    assert h3["constant_majority_agree_posthoc"] == 2                       # always "1d"
+    assert (h3["fine_agree_subsample_posthoc"], h3["fine_agree_full_cloud_posthoc"]) == (2, 1)
+
+
+def test_h4_reports_preregistered_per_dataset_blob_rates_post_hoc():
+    res = [dict(_res("R1_a", "helix", "1d", "1d", "1d"), C2_matched_gaussian={"blob": 1.0}),
+           dict(_res("R3_b", "polytope", "0d", "0d", "0d"), C2_matched_gaussian={"blob": 0.5, "cone": 0.5}),
+           dict(_res("R4b_c", "ringing", "1d", "1d", "1d", prereg=False), C2_matched_gaussian={"blob": 0.2}),
+           _res("C1_gp_0", "helix", "1d", "1d", "1d"), _res("C1_walk_0", "ringing", "1d", "1d", "1d")]
+    h4 = hypotheses_real(res)["H4"]
+    assert abs(h4["C2_blob_rate_mean"] - 1.7 / 3) < 1e-12                  # implemented criterion: mean over all R datasets
+    assert h4["C2_blob_rate_mean_prereg_posthoc"] == 0.75
+    assert (h4["C2_prereg_at_least_80_posthoc"], h4["C2_prereg_n_posthoc"]) == (1, 2)

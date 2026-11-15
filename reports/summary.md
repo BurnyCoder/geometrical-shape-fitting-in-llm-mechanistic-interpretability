@@ -18,21 +18,24 @@ We trained a small neural network to make that call automatically. Shown a 3D cl
 ## Headline results (generated)
 
 <!-- BEGIN:headline -->
-- **Synthetic test set (39,000 clouds, 13 families):** the method picks the correct family in 87.9% [87.6, 88.2] of clouds; median Chamfer distance to the ground-truth shape 0.156 (RMS-radius units).
-- **Same 3,120 clouds for every system:** method 87.4% [86.2, 88.5], B2 features + boosting 64.5% [62.8, 66.2], B1 classical fit + geometric AIC 52.2% [50.6, 54.0], trivial baselines 7.7-7.9%.
-- **H1** (macro-F1 method - B1): 0.3741 [0.3572, 0.3905], Holm p < 1e-16: supported.
-- **H2** (median Chamfer method - B1): -0.0554 [-0.0645, -0.0462], Holm p < 1e-16: supported.
-- **H5b_refinement** (median Chamfer method - no refinement): -0.0033 [-0.0046, -0.0021], Holm p < 1e-16: supported.
-- **Selection rule:** choosing the family by geometric AIC instead of the classifier drops accuracy to 64.6% [64.1, 65.1].
+- **Synthetic test set (39,000 clouds, 13 families):** the method picks the correct family in 87.9% [86.9, 88.9] of clouds; median Chamfer distance to the ground-truth shape 0.156 (RMS-radius units).
+- **Same 3,120 clouds for every system:** method 87.4% [83.7, 90.9], B2 features + boosting 64.5% [59.0, 70.3], B1 classical fit + geometric AIC 52.2% [47.2, 57.5], B1-fixed (post hoc) 54.0% [49.0, 58.7], trivial baselines 7.7-7.9%.
+- **H1** (macro-F1 method - B1): 0.3741 [0.3410, 0.4095], Holm p < 1e-16: supported.
+- **H2** (median Chamfer method - B1): -0.0554 [-0.0766, -0.0412], Holm p < 1e-16: supported.
+- **H5b_refinement** (median Chamfer method - no refinement): -0.0033 [-0.0055, -0.0011], Holm p < 1e-16: supported.
+- **Selection rule:** choosing the family by geometric AIC instead of the classifier drops accuracy to 64.6% [63.0, 66.0]. On clouds whose true family is not blob, A5 reaches 70.0% vs the method's 88.1%.
+- **Geometric AIC cannot select the blob (post hoc, audit 2026-11-14):** B1 and the A5 G-AIC rule output blob for 0% and 0% of blob clouds (the method: 86%), a structural property of the noise estimate (proof in reports/deviations.md). On the clouds whose true family is not blob, macro-F1 is 0.880 (method) vs 0.561 (B1), difference 0.319 [0.285, 0.356].
+- **B1-fixed (post hoc; B1 with per-cloud cluster counts, exact residuals and a blob threshold tau = 0.213 fitted on 780 validation clouds):** accuracy 54.0% [49.0, 58.7]; method - B1-fixed macro-F1 0.338 [0.306, 0.375], median Chamfer -0.0608 [-0.0846, -0.0454]. Against B1, the repairs change macro-F1 by +0.036 [0.011, 0.055] and recover 55% of blob clouds.
 - **Calibration:** temperature T = 0.772 (fitted on the validation stream) lowers ECE from 0.044 to 0.022 and NLL from 0.397 to 0.373; the NLL-optimal T on the test set itself is 0.784.
-- **H3, real activations:** the coarse shape class (point set / curve / surface / blob; majority label over random 80% subsamples) agrees with the literature on 7/12 preregistered datasets (exact 95% CI 28-85%), label-permutation p = 0.125: not supported. Post hoc, with the full-cloud label instead of the subsample majority: 8/12.
-- **H4, controls:** matched-covariance Gaussians are labelled blob 86% of the time (mean over all 17 real datasets, exploratory ones included); ordinal-process controls ringing 60% vs helix 40%: supported. Post hoc: smooth Gaussian processes alone are labelled helix in 80%, random walks in 0%.
+- **H3, real activations:** the coarse shape class (point set / curve / surface / blob; majority label over random 80% subsamples) agrees with the literature on 7/12 preregistered datasets (exact 95% CI 28-85%), label-permutation p = 0.125: not supported. Post hoc, with the full-cloud label instead of the subsample majority: 8/12. For reference (post hoc): always answering the most frequent expected class, curve, agrees on 8/12; the exact family agrees on 1/12 (full cloud: 2/12).
+- **H4, controls:** matched-covariance Gaussians are labelled blob 86% of the time (mean over all 17 real datasets, exploratory ones included); ordinal-process controls ringing 60% vs helix 40%: supported (mean criterion); 10/12 preregistered datasets reach 80%. Post hoc: smooth Gaussian processes alone are labelled helix in 80%, random walks in 0%.
 - **Helix rule (post hoc, every full-cloud helix fit with held-out folds):** the preregistered two-part rule rejects the helix claim for `C1_gp_0` and accepts it for `R2_grokking_WE`, `R5a_llama_weekdays`, `R5b_llama_months`, `R5b_llama_months_means`, all of which are expected to be non-helix shapes, so the rule is necessary, not sufficient.
+- **Error bars:** 95% cluster bootstrap over generator chunks of 25 clouds (audit 2026-11-14), because clouds generated together share N and the R^D-embedding draw.
 <!-- END:headline -->
 
 **For a layperson:**
-- On made-up test shapes, the network is right far more often than the careful classical method.
-- On real model activations, its rough shape class matches what researchers reported on a little over half of the datasets, which is not better than a shuffled-label baseline. Looking at the failures afterwards, it seems to fail when the real shape is not one of its 13 shapes, when the 3D picture is only a slice of something higher-dimensional, or when the cloud looks unlike its training shapes.
+- On made-up test shapes, the network is right far more often than the classical method. Part of that gap is an unfair handicap of the classical method: as implemented it could never answer "blob". A repaired version (B1-fixed) does only slightly better, so the network's advantage does not come from that handicap.
+- On real model activations, its rough shape class matches what researchers reported on a little over half of the datasets, which is not better than a shuffled-label baseline, and no better than always answering "curve". It rarely names the exact shape the researchers reported (H3 line of the headline). Looking at the failures afterwards, it seems to fail when the real shape is not one of its 13 shapes, when the 3D picture is only a slice of something higher-dimensional, or when the cloud looks unlike its training shapes.
 - It also tends to see spirals in smooth random curves. The extra check we planned rejected the one such curve it was run on (the others got only the quick full-cloud fit), but it still accepts spirals for clouds that researchers describe as circles, so a "spiral" verdict needs more than that check.
 
 ## Glossary
@@ -43,11 +46,12 @@ We trained a small neural network to make that call automatically. Shown a 3D cl
 - **Residual:** the average distance from the observed points to the fitted shape.
 - **Refinement:** after the network guesses, a few hundred gradient steps adjust the shape to fit the points better.
 - **Set Transformer:** a neural network that reads an unordered set of points ([Lee et al. 2019](https://arxiv.org/abs/1810.00825)).
-- **Geometric AIC (G-AIC):** a classical rule for choosing between shape families. It adds to the squared residual a penalty 2(dN + p)ε², where d is the shape's dimension, N the number of points, p the number of shape parameters and ε the noise level ([Kanatani 2004](https://iim.cs.tut.ac.jp/member/kanatani/papers/pamodel2.pdf)).
+- **Geometric AIC (G-AIC):** a classical rule for choosing between shape families. It adds to the squared residual a penalty 2(dN + p)ε², where d is the shape's dimension, N the number of points, p the number of shape parameters and ε the noise level ([Kanatani 2004](https://iim.cs.tut.ac.jp/member/kanatani/papers/pamodel2.pdf)). When ε is estimated from the best surface fit, as here, a volumetric "blob" can never win.
 - **Ringing / horseshoe artifact:** when the similarity between points decays smoothly along a sequence (for example a random walk, or data whose covariance decays with distance), PCA produces arch- or spiral-shaped curves, even when nothing interesting is going on ([Novembre & Stephens 2008](https://doi.org/10.1038/ng.139); [Antognini & Sohl-Dickstein 2018](https://arxiv.org/abs/1806.08805); [Shinn 2023](https://doi.org/10.1073/pnas.2311420120)). A true helix has to beat this explanation.
 - **Fine / coarse accuracy:** fine is the exact family. Coarse is only the dimension of the shape: point set (0D), curve (1D), surface (2D) or blob (3D).
 - **Subsample majority:** the label given most often when the fitter is re-run on 200 random 80% subsets of a real cloud. H3 uses the most frequent coarse label (point set, curve, surface or blob) across those subsets.
-- **Bootstrap CI:** an error bar computed by resampling the test samples (2000 resamples).
+- **Bootstrap CI:** an error bar computed by resampling (2000 resamples). Test clouds are generated in chunks of 25 that share the number of points and the high-dimensional embedding, so whole chunks are resampled (a *cluster bootstrap*). Resampling single clouds would make the error bars too narrow.
+- **B1-fixed:** a post-hoc repair of the classical baseline B1. B1's selection rule could never pick blob; B1-fixed calls a cloud a blob when even the best-fitting surface leaves a large residual (threshold set on validation clouds). It also counts clusters per cloud and measures residuals exactly.
 - **Preregistration:** writing down hypotheses and pass/fail criteria before seeing results.
 
 ## Models trained
@@ -63,16 +67,17 @@ We trained a small neural network to make that call automatically. Shown a 3D cl
 <!-- BEGIN:results_table -->
 | System | n | Fine accuracy [95% CI] | Macro-F1 [95% CI] | Coarse accuracy | Superset-OK accuracy | Median Chamfer to GT [95% CI] | Mean residual | Median axis error (deg) |
 |---|---|---|---|---|---|---|---|---|
-| Method (network + refinement) | 39000 | 87.9% [87.6, 88.2] | 0.879 [0.876, 0.882] | 92.7% | 88.4% | 0.156 [0.154, 0.158] | 0.105 | 1.1 |
-| Method, baseline subset | 3120 | 87.4% [86.2, 88.5] | 0.873 [0.862, 0.884] | 92.3% | 87.9% | 0.154 [0.147, 0.161] | 0.106 | 1.0 |
-| A3: no refinement | 39000 | 87.9% [87.6, 88.2] | 0.879 [0.876, 0.882] | 92.7% | 88.4% | 0.159 [0.157, 0.162] | 0.120 | 1.5 |
-| A5: G-AIC selection | 39000 | 64.6% [64.1, 65.1] | 0.627 [0.623, 0.631] | 77.5% | 68.8% | 0.182 [0.179, 0.185] | 0.108 | 0.8 |
-| A5: hybrid selection | 39000 | 85.6% [85.2, 85.9] | 0.858 [0.854, 0.861] | 91.1% | 86.6% | 0.157 [0.155, 0.159] | 0.103 | 1.1 |
-| B1: classical fit + G-AIC | 3120 | 52.2% [50.6, 54.0] | 0.499 [0.484, 0.514] | 70.7% | 58.1% | 0.209 [0.200, 0.221] | 0.117 | 0.7 |
-| B2: features + boosting | 3120 | 64.5% [62.8, 66.2] | 0.645 [0.628, 0.661] | 85.1% | 68.0% | 0.237 [0.221, 0.255] | 0.120 | 1.1 |
-| B3a: always blob | 3120 | 7.7% [6.8, 8.7] | 0.011 [0.010, 0.012] | 7.7% | 7.7% | 0.543 [0.536, 0.550] | 0.120 | 11.7 |
-| B3b: always arc (B1 arc fit) | 3120 | 7.7% [6.8, 8.6] | 0.011 [0.010, 0.012] | 38.5% | 7.7% | 0.545 [0.536, 0.555] | 0.276 | 0.5 |
-| B3c: random shape | 3120 | 7.9% [7.1, 8.8] | 0.079 [0.070, 0.088] | 32.9% | 10.9% | 1.116 [1.100, 1.137] | 0.589 | 58.3 |
+| Method (network + refinement) | 39000 | 87.9% [86.9, 88.9] | 0.879 [0.869, 0.889] | 92.7% | 88.4% | 0.156 [0.148, 0.164] | 0.105 | 1.1 |
+| Method, baseline subset | 3120 | 87.4% [83.7, 90.9] | 0.873 [0.829, 0.904] | 92.3% | 87.9% | 0.154 [0.133, 0.180] | 0.106 | 1.0 |
+| A3: no refinement | 39000 | 87.9% [86.9, 88.9] | 0.879 [0.869, 0.889] | 92.7% | 88.4% | 0.159 [0.152, 0.167] | 0.120 | 1.5 |
+| A5: G-AIC selection | 39000 | 64.6% [63.0, 66.0] | 0.627 [0.616, 0.637] | 77.5% | 68.8% | 0.182 [0.173, 0.192] | 0.108 | 0.8 |
+| A5: hybrid selection | 39000 | 85.6% [84.4, 86.8] | 0.858 [0.846, 0.869] | 91.1% | 86.6% | 0.157 [0.149, 0.165] | 0.103 | 1.1 |
+| B1: classical fit + G-AIC | 3120 | 52.2% [47.2, 57.5] | 0.499 [0.453, 0.533] | 70.7% | 58.1% | 0.209 [0.183, 0.249] | 0.117 | 0.7 |
+| B1-fixed: repaired classical fit (post hoc) | 3120 | 54.0% [49.0, 58.7] | 0.535 [0.486, 0.571] | 70.2% | 59.7% | 0.215 [0.190, 0.253] | 0.098 | 0.9 |
+| B2: features + boosting | 3120 | 64.5% [59.0, 70.3] | 0.645 [0.582, 0.691] | 85.1% | 68.0% | 0.237 [0.194, 0.300] | 0.120 | 1.1 |
+| B3a: always blob | 3120 | 7.7% [3.8, 12.2] | 0.011 [0.006, 0.017] | 7.7% | 7.7% | 0.543 [0.524, 0.573] | 0.120 | 11.7 |
+| B3b: always arc (B1 arc fit) | 3120 | 7.7% [3.8, 12.2] | 0.011 [0.006, 0.017] | 38.5% | 7.7% | 0.545 [0.521, 0.570] | 0.276 | 0.5 |
+| B3c: random shape | 3120 | 7.9% [7.0, 8.9] | 0.079 [0.068, 0.087] | 32.9% | 10.9% | 1.116 [1.074, 1.159] | 0.589 | 58.3 |
 <!-- END:results_table -->
 
 ## Preregistered hypotheses
@@ -80,11 +85,14 @@ We trained a small neural network to make that call automatically. Shown a 3D cl
 <!-- BEGIN:hypotheses_table -->
 | Hypothesis | Comparison | Estimate [95% CI] | p (Holm) | n | Verdict |
 |---|---|---|---|---|---|
-| H1 | macro-F1(method) - macro-F1(B1) | 0.3741 [0.3572, 0.3905] | < 1e-16 | 3120 | supported |
-| H2 | median Chamfer(method) - median Chamfer(B1) | -0.0554 [-0.0645, -0.0462] | < 1e-16 | 3120 | supported |
-| H5b_refinement | median Chamfer(method) - median Chamfer(no refinement) | -0.0033 [-0.0046, -0.0021] | < 1e-16 | 39000 | supported |
-| H3 | Coarse-label agreement (subsample majority) with literature on preregistered real datasets | 7/12 = 58% [28, 85] (exact binomial) | perm. p = 0.125 | 12 | not supported |
-| H4 | Controls: matched Gaussians -> blob (mean over 17 real datasets); ordinal processes -> ringing (not helix) | blob rate 86%; ringing 60% vs helix 40% | - | - | supported |
+| H1 | macro-F1(method) - macro-F1(B1) | 0.3741 [0.3410, 0.4095] | < 1e-16 | 3120 | supported |
+| H2 | median Chamfer(method) - median Chamfer(B1) | -0.0554 [-0.0766, -0.0412] | < 1e-16 | 3120 | supported |
+| H5b_refinement | median Chamfer(method) - median Chamfer(no refinement) | -0.0033 [-0.0055, -0.0011] | < 1e-16 | 39000 | supported |
+| H1, post hoc | macro-F1(method) - macro-F1(B1), clouds whose true family is not blob | 0.3191 [0.2848, 0.3560] | - | 2880 | method better |
+| H1, post hoc | macro-F1(method) - macro-F1(B1-fixed) | 0.3381 [0.3062, 0.3746] | - | 3120 | method better |
+| H2, post hoc | median Chamfer(method) - median Chamfer(B1-fixed) | -0.0608 [-0.0846, -0.0454] | < 1e-16 (unadjusted) | 3120 | method better |
+| H3 | Coarse-label agreement (subsample majority) with literature on preregistered real datasets | 7/12 = 58% [28, 85] (exact binomial); post hoc: constant 'curve' 8/12, exact family 1/12 | perm. p = 0.125 | 12 | not supported |
+| H4 | Controls: matched Gaussians -> blob (mean over 17 real datasets); ordinal processes -> ringing (not helix) | blob rate 86%; ringing 60% vs helix 40% | - | - | supported (mean criterion); 10/12 preregistered datasets reach 80% |
 <!-- END:hypotheses_table -->
 
 ## Real activations
