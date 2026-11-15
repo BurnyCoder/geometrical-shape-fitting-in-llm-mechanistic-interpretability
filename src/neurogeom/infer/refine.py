@@ -60,7 +60,7 @@ def grid_dist(f, p: dict, x: torch.Tensor, dense: dict) -> torch.Tensor:
 def projected_dist(f, p: dict, x: torch.Tensor, dense: dict, steps: int = 10, h: float = 1e-4) -> torch.Tensor:
     """(B, N) orthogonal point-to-shape distance: start at the nearest dense sample and take damped Gauss-Newton steps
     on the shape's sampling parameter u in [0, 1]^d (point inversion on a parametric curve or surface: Ma & Hewitt
-    2003, CAGD 20(2), doi:10.1016/S0167-8396(03)00021-9; Hu & Wallner 2005, CAGD 22(3), doi:10.1016/j.cagd.2004.11.003).
+    2003, CAGD 20(2), doi:10.1016/S0167-8396(03)00021-9; Hu & Wallner 2005, CAGD 22(3), doi:10.1016/j.cagd.2004.12.001).
     Each step is backtracked (scales 1, 1/2, 1/4, 1/8, the best one per point; a full step overshoots near a sphere's
     pole or for points far outside a strongly curved curve) and kept only where it shortens the distance, so the
     result is never larger than the grid distance.
