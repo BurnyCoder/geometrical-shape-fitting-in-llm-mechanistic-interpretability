@@ -227,7 +227,10 @@ def headline(a: dict) -> str:
         out.append(f"- **B1-fixed (post hoc; B1 with per-cloud cluster counts, exact residuals and a blob threshold"
                    + (f" tau = {t['tau']:.3f} fitted on {t['n_val']} validation clouds" if t else "") + f"):** accuracy {acc('B1_fixed')}; "
                    f"method - B1-fixed macro-F1 {fx['macro_f1_diff'][0]:.3f} [{fx['macro_f1_diff'][1]:.3f}, {fx['macro_f1_diff'][2]:.3f}], "
-                   f"median Chamfer {fx['median_chamfer_diff'][0]:.4f} [{fx['median_chamfer_diff'][1]:.4f}, {fx['median_chamfer_diff'][2]:.4f}].")
+                   f"median Chamfer {fx['median_chamfer_diff'][0]:.4f} [{fx['median_chamfer_diff'][1]:.4f}, {fx['median_chamfer_diff'][2]:.4f}]."
+                   + (f" Against B1, the repairs change macro-F1 by {ph['B1_fixed_vs_B1']['macro_f1_diff'][0]:+.3f} "
+                      f"[{ph['B1_fixed_vs_B1']['macro_f1_diff'][1]:.3f}, {ph['B1_fixed_vs_B1']['macro_f1_diff'][2]:.3f}] and recover "
+                      f"{100 * ph['blob_recall']['B1_fixed']:.0f}% of blob clouds." if "B1_fixed_vs_B1" in ph else ""))
     c = a.get("calibration")
     if c:
         out.append(f"- **Calibration:** temperature T = {c['temperature']:.3f} (fitted on the validation stream) lowers ECE from {c['before']['ece']:.3f} "
@@ -272,12 +275,13 @@ def _tex_escape(t: str) -> str:
     return t
 
 
-def md_to_tex(md: str, size: str = r"\scriptsize") -> str:
-    """Convert a generated markdown pipe table into a LaTeX booktabs tabular."""
+def md_to_tex(md: str, size: str = r"\scriptsize", colspec: str | None = None) -> str:
+    """Convert a generated markdown pipe table into a LaTeX booktabs tabular. colspec (e.g. with p{4cm} columns) lets
+    long cells wrap instead of forcing a \\resizebox that shrinks the whole table."""
     lines = [l for l in md.strip().splitlines() if l.startswith("|")]
     rows = [[c.strip() for c in l.strip("|").split("|")] for l in lines if not set(l) <= set("|-: ")]
     ncol = len(rows[0])
-    out = [size, r"\begin{tabular}{" + "l" * ncol + "}", r"\toprule",
+    out = [size, r"\begin{tabular}{" + (colspec or "l" * ncol) + "}", r"\toprule",
            " & ".join(r"\textbf{" + _tex_escape(c) + "}" for c in rows[0]) + r" \\", r"\midrule"]
     out += [" & ".join(_tex_escape(c) for c in r) + r" \\" for r in rows[1:]]
     out += [r"\bottomrule", r"\end{tabular}"]
@@ -294,6 +298,12 @@ def select_cols(md: str, cols: list[str]) -> str:
 PAPER_COMPACT = {   # paper tables: the same generated tables, fewer columns so they stay legible
     "results_table": ["System", "n", "Fine accuracy [95% CI]", "Macro-F1 [95% CI]", "Coarse accuracy", "Median Chamfer to GT [95% CI]"],
     "real_table": ["Dataset", "N x D", "Top-3 var.", "Expected (coarse / fine)", "Fit (full cloud)", "p(fit)", "Subsample majority (freq.)", "Flags"],
+}
+
+
+PAPER_COLSPEC = {   # tables with long cells wrap at the text width (6.7 in) instead of being shrunk by \resizebox
+    # ragged-right wrapped columns (array package) avoid the wide inter-word gaps of justified narrow columns
+    "hypotheses_table": "l " + " ".join(r">{\raggedright\arraybackslash}p{%s}" % w for w in ("4.3cm", "3.6cm", "1.6cm")) + r" l >{\raggedright\arraybackslash}p{2.5cm}",
 }
 
 
@@ -386,6 +396,20 @@ def tex_macros(analysis: dict) -> str:
     if "b1_fixed_tau" in ph:
         mac("bonefixedTau", f"{ph['b1_fixed_tau']['tau']:.3f}")
         mac("bonefixedNval", str(ph["b1_fixed_tau"]["n_val"]))
+    bb = ph.get("B1_fixed_vs_B1")
+    if bb:                                                         # how much the repairs change the classical baseline
+        e, c = ci3(bb["macro_f1_diff"])
+        mac("estFoneBonefixedVsBone", e)
+        mac("ciFoneBonefixedVsBone", c)
+        d = bb["fine_acc_diff"]
+        mac("estAccBonefixedVsBone", f"{100 * d[0]:.1f}")
+        mac("ciAccBonefixedVsBone", f"[{100 * d[1]:.1f}, {100 * d[2]:.1f}]")
+        mac("pCdBonefixedVsBone", f"{bb['wilcoxon_p_chamfer']:.2f}")
+    for key, tag in (("B1_classical", "Bone"), ("B1_fixed", "Bonefixed")):
+        v = analysis.get("by_n_bin", {}).get(key)
+        if v:                                                      # accuracy in the smallest and largest point-count bins
+            mac(f"accNfirst{tag}", f"{100 * v[min(v, key=int)]['fine_acc']:.1f}\\%")
+            mac(f"accNlast{tag}", f"{100 * v[max(v, key=int)]['fine_acc']:.1f}\\%")
     if "real" in analysis:
         h3, h4 = analysis["real"]["H3"], analysis["real"]["H4"]
         if "constant_majority_agree_posthoc" in h3:
@@ -426,7 +450,7 @@ def build_all(cfg: dict, ablation_runs: dict | None = None) -> dict:
     for name, t in tables.items():
         (GEN_MD / f"{name}.md").write_text(t + "\n", encoding="utf-8")
         if t.lstrip().startswith("|"):   # only pipe tables become LaTeX tables (the headline is a bullet list)
-            (GEN_TEX / f"{name}.tex").write_text(md_to_tex(t) + "\n", encoding="utf-8")
+            (GEN_TEX / f"{name}.tex").write_text(md_to_tex(t, colspec=PAPER_COLSPEC.get(name)) + "\n", encoding="utf-8")
         if name in PAPER_COMPACT:
             (GEN_TEX / f"{name}_compact.tex").write_text(md_to_tex(select_cols(t, PAPER_COMPACT[name])) + "\n", encoding="utf-8")
         for doc in [REPO_ROOT / "README.md", *sorted((REPO_ROOT / "reports").glob("*.md"))]:

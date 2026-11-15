@@ -1,6 +1,6 @@
-"""Baseline B1: classical fit-every-family + geometric-AIC model selection (no learning).
+"""Baselines B1 and B1-fixed: classical fit-every-family + geometric-AIC model selection (no learning).
 
-Global context: the strongest non-learned alternative to the network. Every family is fitted to the
+Global context: the non-learned alternative to the network. Every family is fitted to the
 cloud by the same two-sided refinement objective the method uses (infer/refine.py), from heuristic
 multi-start initialisations instead of a network guess, and the family is chosen by Kanatani's
 geometric AIC (infer/select.py). Inits exploit the PCA frame (the input is already PCA-aligned):
@@ -9,6 +9,9 @@ geometric AIC (infer/select.py). Inits exploit the PCA frame (the input is alrea
     normals can lie along any PC), plus one random rotation;
   - clusters: Lloyd's k-means (Lloyd 1982) for every k in 2..6, each a separate candidate;
   - polytope: every subtype with two rotations.
+B1 is the preregistered baseline as run. B1-fixed (post hoc, audit 2026-11-14; reports/deviations.md) repairs three
+handicaps: cluster counts per cloud instead of per batch, exact point-to-shape residuals in G-AIC, and a blob null
+test, because G-AIC with the noise estimated from the best surface fit can never select the blob.
 """
 
 from __future__ import annotations

@@ -66,8 +66,8 @@ def fig_dir() -> Path:
 def fig_systems(analysis: dict, key: str = "systems", name: str = "fig_systems.png") -> Path:
     s = analysis[key]
     order = [k for k in SYSTEM_ORDER if k in s]
-    fig, axes = plt.subplots(1, 2, figsize=(10, 0.42 * len(order) + 1.2), sharey=True)
-    for ax, metric, title in ((axes[0], "fine_acc", "Fine family accuracy"), (axes[1], "median_chamfer", "Median Chamfer to ground truth (lower is better)")):
+    fig, axes = plt.subplots(1, 2, figsize=(10.5, 0.42 * len(order) + 1.2), sharey=True)
+    for ax, metric, title in ((axes[0], "fine_acc", "Fine family accuracy"), (axes[1], "median_chamfer", "Median Chamfer to ground truth (lower = better)")):
         for i, k in enumerate(order[::-1]):
             est, lo, hi = s[k][metric]
             ax.plot([lo, hi], [i, i], color=_color(k), linewidth=2, solid_capstyle="round")
