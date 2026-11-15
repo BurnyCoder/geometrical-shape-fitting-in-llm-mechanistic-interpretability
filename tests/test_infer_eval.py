@@ -183,3 +183,15 @@ def test_blob_tau_is_fitted_to_separate_noisy_clouds_and_ties_go_to_the_smallest
     assert 0.2 <= res["tau"] < 0.3 and res["val_macro_f1"] == 1.0
     assert res["tau"] == min(t for t, s in zip(res["grid"], res["grid_macro_f1"]) if s == 1.0)
     assert res["val_macro_f1_never_blob"] < 1.0
+
+
+def test_fast_macro_f1_equals_sklearn_including_predictions_outside_the_true_classes():
+    from sklearn.metrics import f1_score
+    from neurogeom.eval.stats import macro_f1
+    rng = np.random.default_rng(0)
+    names = np.array(["arc", "blob", "cone", "disc", "helix"])
+    for _ in range(20):
+        yt = names[rng.integers(0, 4, 300)]                      # "helix" never true ...
+        yp = names[rng.integers(0, 5, 300)]                      # ... but sometimes predicted
+        ref = f1_score(yt, yp, average="macro", labels=np.unique(yt), zero_division=0)
+        assert abs(macro_f1(yt, yp) - ref) < 1e-12

@@ -14,7 +14,6 @@ from __future__ import annotations
 import numpy as np
 import torch
 from scipy.stats import wilcoxon
-from sklearn.metrics import f1_score
 
 
 def _sampler(n: int, groups, rng: np.random.Generator):
@@ -55,7 +54,17 @@ def bootstrap_ci_pairs(y_true, y_pred, stat, reps: int = 2000, seed: int = 0, al
 
 
 def macro_f1(y_true, y_pred) -> float:
-    return float(f1_score(y_true, y_pred, average="macro", labels=np.unique(y_true)))
+    """Macro-F1 over the classes present in y_true; equal to sklearn's f1_score(average="macro", labels=unique(y_true),
+    zero_division=0) (unit test), but computed with bincounts because the bootstraps call it ~10^4 times on 39k clouds.
+    A prediction outside the true classes is a false negative of its true class and nobody's false positive."""
+    yt, yp = np.asarray(y_true), np.asarray(y_pred)
+    labels, t = np.unique(yt, return_inverse=True)                           # true classes and their codes
+    pos = np.searchsorted(labels, yp).clip(max=len(labels) - 1)
+    p = np.where(labels[pos] == yp, pos, -1)                                 # code of each prediction, -1 if not a true class
+    k = len(labels)
+    tp = np.bincount(t[p == t], minlength=k)
+    denom = np.bincount(t, minlength=k) + np.bincount(p[p >= 0], minlength=k)   # (tp + fn) + (tp + fp)
+    return float(np.mean(np.where(denom > 0, 2 * tp / np.maximum(denom, 1), 0.0)))
 
 
 def paired_bootstrap(a, b, stat=np.mean, reps: int = 2000, seed: int = 0, alpha: float = 0.05, groups=None) -> tuple[float, float, float]:

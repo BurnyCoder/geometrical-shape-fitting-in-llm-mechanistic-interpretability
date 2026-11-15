@@ -26,6 +26,7 @@ from neurogeom.eval.stats import (binom_ci, bootstrap_ci, bootstrap_ci_pairs, ec
                                   paired_bootstrap_f1, wilcoxon_p)
 from neurogeom.logging_utils import get_logger
 from neurogeom.realdata.common import is_prereg
+from neurogeom.shapes.registry import INDEX
 
 log = get_logger(__name__)
 
@@ -38,12 +39,17 @@ def cluster_ids(sample_ids: pd.Series, chunk: int) -> pd.Series:
     return parts[0] + "-" + parts[1] + "-" + (parts[2].astype(int) // chunk).astype(str)
 
 
+def _code(names: pd.Series) -> np.ndarray:
+    """Family names -> integer indices, so the bootstrapped macro-F1 sorts integers instead of strings."""
+    return names.map(INDEX).to_numpy()
+
+
 def system_summary(df: pd.DataFrame, reps: int) -> dict:
     out = {}
     for sysname, g in df.groupby("system"):
         cl = g.cluster.values                                                      # cluster bootstrap over generator chunks
         acc = bootstrap_ci(g.correct.astype(float), reps=reps, groups=cl)
-        f1 = bootstrap_ci_pairs(g.family_true, g.family_pred, macro_f1, reps=reps, groups=cl)   # same replicate count as every CI (prereg Sec. 5.2)
+        f1 = bootstrap_ci_pairs(_code(g.family_true), _code(g.family_pred), macro_f1, reps=reps, groups=cl)   # same replicate count as every CI (prereg Sec. 5.2)
         cd = bootstrap_ci(g.chamfer.values, stat=np.median, reps=reps, groups=cl)
         out[sysname] = {
             "n": int(len(g)), "fine_acc": acc, "macro_f1": f1, "coarse_acc": bootstrap_ci(g.coarse_correct.astype(float), reps=reps, groups=cl),
@@ -79,7 +85,7 @@ def paired(df: pd.DataFrame, a: str, b: str, reps: int) -> dict | None:
         return None
     ga, gb = ga.loc[common], gb.loc[common]
     cl = ga.cluster.values                                                         # resample whole generator chunks
-    f1 = paired_bootstrap_f1(ga.family_true.values, ga.family_pred.values, gb.family_pred.values, reps=reps, groups=cl)
+    f1 = paired_bootstrap_f1(_code(ga.family_true), _code(ga.family_pred), _code(gb.family_pred), reps=reps, groups=cl)
     cd = paired_bootstrap(ga.chamfer.values, gb.chamfer.values, stat=np.median, reps=reps, groups=cl)
     return {"n": int(len(common)), "n_clusters": int(len(set(cl))), "macro_f1_diff": f1, "median_chamfer_diff": cd,
             "fine_acc_diff": paired_bootstrap(ga.correct.astype(float).values, gb.correct.astype(float).values, reps=reps, groups=cl),
@@ -229,6 +235,10 @@ def run_analysis(cfg: dict, ablation_runs: dict | None = None) -> dict:
            "per_family": per_family(full), "confusion_method": confusion(df, "method"),
            "hypotheses": hypotheses_synth(df, reps, abl), "posthoc": posthoc_synth(df, reps), "calibration": calibration(res_dir),
            "ci_method": f"cluster bootstrap over generator chunks of {CHUNK} clouds (audit 2026-11-14)"}
+    tau_p = res_dir / "synth" / "b1_fixed_tau.json"
+    if tau_p.exists():   # B1-fixed's blob threshold, fitted on the val stream (eval/synth_eval.py, tune_blob_tau)
+        t = json.load(open(tau_p))
+        out["posthoc"]["b1_fixed_tau"] = {k: t[k] for k in ("tau", "val_macro_f1", "val_macro_f1_never_blob", "n_val")}
     if "ambiguous" in df:
         ids = set(df[(df.system == "B1_classical") & (df.ambiguous == True)].sample_id)  # noqa: E712
         sub = df[(df.system != "method_subset") & ~df.sample_id.isin(ids) & df.sample_id.isin(base_ids)]
