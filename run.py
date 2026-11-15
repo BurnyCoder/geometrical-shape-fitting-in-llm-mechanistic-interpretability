@@ -58,6 +58,31 @@ def phase_eval_synth(cfg):
     run_synth_eval(cfg)
 
 
+def phase_tune_b1_fixed(cfg):
+    """Post hoc (audit 2026-11-14): fit B1-fixed's blob threshold tau on the validation stream."""
+    import json
+    from neurogeom.eval.synth_eval import run_b1_fixed, tune_blob_tau
+    res = tune_blob_tau(run_b1_fixed(cfg, "val", tau=None))
+    json.dump(res, open(Path(cfg["paths"]["results"]) / "synth" / "b1_fixed_tau.json", "w"), indent=2)
+    log.info("B1-fixed tau = %.4f (val macro-F1 %.3f; never blob %.3f; %d val clouds)", res["tau"], res["val_macro_f1"],
+             res["val_macro_f1_never_blob"], res["n_val"])
+
+
+def phase_eval_b1_fixed(cfg):
+    """Post hoc (audit 2026-11-14): B1-fixed on the baseline subset with the tuned tau; rows replace any earlier
+    B1_fixed rows of per_sample.csv."""
+    import json
+    import pandas as pd
+    from neurogeom.eval.synth_eval import run_b1_fixed
+    synth = Path(cfg["paths"]["results"]) / "synth"
+    tau = json.load(open(synth / "b1_fixed_tau.json"))["tau"]
+    new = run_b1_fixed(cfg, "test", tau)
+    old = pd.read_csv(synth / "per_sample.csv", low_memory=False)
+    pd.concat([old[old.system != "B1_fixed"], new], ignore_index=True).to_csv(synth / "per_sample.csv", index=False)
+    log.info("B1-fixed: %d rows, accuracy %.3f, blob predicted %d -> per_sample.csv", len(new), new.correct.mean(),
+             int((new.family_pred == "blob").sum()))
+
+
 def phase_extract_real(cfg):
     from neurogeom.realdata.extract import extract_all
     extract_all(cfg)
@@ -102,6 +127,8 @@ PHASES = {
     "catalog": phase_catalog,
     "train": phase_train,
     "eval-synth": phase_eval_synth,
+    "tune-b1-fixed": phase_tune_b1_fixed,
+    "eval-b1-fixed": phase_eval_b1_fixed,
     "extract-real": phase_extract_real,
     "eval-real": phase_eval_real,
     "report": phase_report,

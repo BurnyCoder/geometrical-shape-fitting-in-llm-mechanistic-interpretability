@@ -29,21 +29,44 @@ def n_free(f, p: dict) -> torch.Tensor:
     return torch.full_like(p["center"][:, 0] if "center" in p else p["spread"], float(f.n_free))
 
 
+def _stack(cands: list[dict]) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """(J, d, p) of every candidate: (B, n_cands), (n_cands,), (B, n_cands)."""
+    js = torch.stack([c["J"] for c in cands], -1)
+    ds = torch.tensor([FAMILIES[c["fi"]].manifold_dim for c in cands], dtype=torch.float32, device=js.device)
+    return js, ds, torch.stack([c["p"] for c in cands], -1)
+
+
+def _general(cands: list[dict]) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """J (B,), p (B,) and d of the most general non-volumetric candidate (highest d < 3; ties: smallest J)."""
+    js, ds, ps = _stack(cands)
+    gen_mask = ds < 3
+    dmax = ds[gen_mask].max() if bool(gen_mask.any()) else torch.tensor(2.0)
+    jg = js.masked_fill(~(gen_mask & (ds == dmax)), float("inf")).min(-1)
+    return jg.values, torch.gather(ps, -1, jg.indices.unsqueeze(-1)).squeeze(-1), dmax
+
+
+def noise_eps2(cands: list[dict], n_points: torch.Tensor) -> torch.Tensor:
+    """(B,) noise variance estimated from the most general non-volumetric candidate g, eps^2 = J_g / ((3 - d_g) N - p_g).
+    Because the noise is estimated from g itself, AIC_G(blob) - AIC_G(g) = J_blob + J_g + 2 p_blob eps^2 > 0, i.e. the
+    d = 3 blob can never be selected (audit 2026-11-14; B1-fixed decides the blob with general_rms, baselines/classical.py)."""
+    jg, p_g, dmax = _general(cands)
+    dof = ((3 - dmax) * n_points.to(torch.float32) - p_g).clamp_min(1.0)
+    return (jg / dof).clamp_min(1e-8)
+
+
+def general_rms(cands: list[dict], n_points: torch.Tensor) -> torch.Tensor:
+    """(B,) RMS point-to-shape distance of that most general candidate, sqrt(J_g / N): the noise level the cloud would have
+    if it were that surface. B1-fixed's blob statistic; unlike sqrt(eps^2) it stays bounded when N <= p_g, where the
+    degrees of freedom (3 - d) N - p of the G-AIC noise estimate are clamped to 1 (observed in the smoke run: 5-point
+    lines got eps_hat ~ 0.8)."""
+    return (_general(cands)[0] / n_points.to(torch.float32).clamp_min(1.0)).sqrt()
+
+
 def gaic_scores(cands: list[dict], n_points: torch.Tensor) -> torch.Tensor:
     """cands: list over families of {"fi", "J" (B,), "p" (B,)}; returns AIC_G (B, n_cands)."""
     n = n_points.to(torch.float32)
-    js = torch.stack([c["J"] for c in cands], -1)
-    ds = torch.tensor([FAMILIES[c["fi"]].manifold_dim for c in cands], dtype=torch.float32, device=js.device)
-    ps = torch.stack([c["p"] for c in cands], -1)
-    # noise estimate from the most general non-volumetric candidate (highest d < 3; ties: smallest J)
-    gen_mask = ds < 3
-    dmax = ds[gen_mask].max() if bool(gen_mask.any()) else torch.tensor(2.0)
-    use = gen_mask & (ds == dmax)
-    jg = js.masked_fill(~use, float("inf")).min(-1)
-    p_g = torch.gather(ps, -1, jg.indices.unsqueeze(-1)).squeeze(-1)
-    dof = ((3 - dmax) * n - p_g).clamp_min(1.0)
-    eps2 = (jg.values / dof).clamp_min(1e-8)
-    return js + 2 * (ds.unsqueeze(0) * n.unsqueeze(-1) + ps) * eps2.unsqueeze(-1)
+    js, ds, ps = _stack(cands)
+    return js + 2 * (ds.unsqueeze(0) * n.unsqueeze(-1) + ps) * noise_eps2(cands, n_points).unsqueeze(-1)
 
 
 def select(probs: torch.Tensor, cand_fi: list[int], aic: torch.Tensor | None, rule: str) -> torch.Tensor:

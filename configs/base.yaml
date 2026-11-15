@@ -88,6 +88,7 @@ eval:
   classical_restarts: 4       # PCA-axis-permutation inits + 1 random rotation (see baselines/classical.py)
   classical_steps: 300        # same budget as the method's refinement
   baseline_per_cell: 20       # baselines run on the first 20 samples per family of every cell (3120 samples)
+  b1_fixed_val_per_cell: 5    # B1-fixed (post hoc, audit 2026-11-14): val clouds per family and cell used to fit its blob threshold tau (780)
   val_per_cell: 10            # temperature-calibration set from the `val` stream
   gbm_per_family: 1500        # B2 training clouds per family
   baselines: true             # run B1-B3 (only needed once per test set)
